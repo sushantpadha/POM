@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Info, Network, RefreshCcw, UserRound, Sprout } from 'lucide-react';
+import { Download, Info, Network, RefreshCcw, Sprout, Upload, UserRound } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { MODEL } from '../../store/model';
 import { useDerived } from '../../hooks/useDerived';
 import { globalExploration } from '../../logic/graph';
 import { Menu } from '../sidebar/Sidebar';
+import { downloadExport } from './transfer';
 
 export function TopBar() {
   const profile = useStore((s) => s.profile);
+  const userName = useStore((s) => s.userName);
   const responses = useStore((s) => s.responses);
   const chooseProfile = useStore((s) => s.chooseProfile);
   const setActiveTab = useStore((s) => s.setActiveTab);
@@ -54,8 +56,9 @@ export function TopBar() {
           setMenu({ x: r.right - 240, y: r.bottom + 6 });
         }}
       >
-        <span className="avatar">{profile === 'sample' ? 'PK' : <UserRound size={11} />}</span>
-        {profile === 'sample' ? 'Priya · sample profile' : 'Fresh start'}
+        <span className="avatar">{userName ? userName.trim().charAt(0).toUpperCase() : <UserRound size={11} />}</span>
+        {userName ?? 'Not signed in'}
+        {profile === 'sample' && <span className="faint">· sample profile</span>}
       </button>
       {menu && (
         <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
@@ -65,6 +68,26 @@ export function TopBar() {
           </button>
           <button className="menu-item" onClick={() => switchTo('fresh')}>
             <Sprout size={14} /> Fresh start — from onboarding
+          </button>
+          <div className="menu-sep" />
+          <div className="menu-note">Your data</div>
+          <button
+            className="menu-item"
+            onClick={() => {
+              setMenu(null);
+              downloadExport();
+            }}
+          >
+            <Download size={14} /> Export data (.json)
+          </button>
+          <button
+            className="menu-item"
+            onClick={() => {
+              setMenu(null);
+              setDialog({ kind: 'import' });
+            }}
+          >
+            <Upload size={14} /> Import data…
           </button>
           <div className="menu-sep" />
           <button className="menu-item danger" onClick={() => switchTo(profile === 'sample' ? 'sample' : 'fresh')}>

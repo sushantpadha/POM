@@ -555,3 +555,5 @@ textarea.input:focus, input.input:focus { border-color: var(--accent); }
 .chooser-card h3 { margin: 4px 0 0; font-size: 14.5px; font-weight: 600; }
 .chooser-card p { margin: 0; font-size: 12.5px; color: var(--text-dim); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.name-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 22px; font-size: 13px; color: var(--text-dim); }
+.name-field .input { max-width: 340px; }

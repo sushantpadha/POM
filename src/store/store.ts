@@ -6,10 +6,7 @@ import type {
   Entry,
   EntryKind,
   FileMode,
-  NodeProgress,
-  NoteFile,
   Profile,
-  Response,
   Tab,
 } from '../types';
 import { NODE_BY_ID } from '../data/nodes';
@@ -25,9 +22,10 @@ import {
 import { activeTags, availableIds } from '../logic/graph';
 import { commitVersion, generateUpdate, nowIso, summarize, uid } from '../logic/notes';
 import { MODEL, nodesForFile, questionsForFile } from './model';
+import { buildExport, type ExportFile, type PortableData } from '../logic/transfer';
 
 export type FloatingPanel = 'ask' | 'retakes' | 'tensions' | null;
-export type Dialog = { kind: 'reset' | 'erase'; fileId: string } | { kind: 'about' } | null;
+export type Dialog = { kind: 'reset' | 'erase'; fileId: string } | { kind: 'about' } | { kind: 'import' } | null;
 
 export interface Toast {
   id: string;
@@ -36,17 +34,7 @@ export interface Toast {
   action?: { label: string; run: () => void };
 }
 
-interface Data {
-  profile: Profile | null;
-  onboardedAt?: string;
-  responses: Record<string, Response>;
-  progress: Record<string, NodeProgress>;
-  files: Record<string, NoteFile>;
-  seen: string[];
-  dismissedTensions: string[];
-  tensionContext: Record<string, { fileId: string; entryId: string }>;
-  deferred: Record<string, string>;
-}
+type Data = PortableData;
 
 interface Ui {
   tabs: Tab[];
@@ -69,7 +57,10 @@ interface Ui {
 
 interface Actions {
   chooseProfile: (p: Profile) => void;
-  completeOnboarding: () => void;
+  completeOnboarding: (name: string) => void;
+  setUserName: (name: string) => void;
+  exportData: () => ExportFile;
+  importData: (data: PortableData) => void;
   setResponse: (qid: string, value: AnswerValue, confidence?: number) => string[];
   setConfidence: (qid: string, confidence: number) => void;
   clearResponse: (qid: string) => void;
@@ -111,6 +102,9 @@ export type Store = Data & Ui & Actions;
 function freshData(): Data {
   return {
     profile: 'fresh',
+    // Explicit undefined so switching from the sample profile clears these.
+    userName: undefined,
+    onboardedAt: undefined,
     responses: {},
     progress: {},
     files: emptyFiles(),
@@ -124,6 +118,7 @@ function freshData(): Data {
 function sampleData(): Data {
   return {
     profile: 'sample',
+    userName: 'Priya',
     onboardedAt: SAMPLE_ONBOARDED_AT,
     responses: structuredClone(SAMPLE_RESPONSES),
     progress: structuredClone(SAMPLE_PROGRESS),
@@ -207,14 +202,44 @@ export const useStore = create<Store>()(
             s.selectedNodeId = p === 'fresh' ? 'root' : null;
           }),
 
-        completeOnboarding: () =>
+        completeOnboarding: (name) =>
           set((s) => {
+            s.userName = name.trim().slice(0, 60);
             s.onboardedAt = nowIso();
             if (!s.seen.includes('root')) s.seen.push('root');
             s.tabs = s.tabs.filter((t) => t.kind !== 'onboarding');
             s.activeTab = 0;
             s.selectedNodeId = 'root';
-            pushToast(s, { text: 'Three branches revealed: Ethics, Worldview / Beliefs, Long-term Goals.', tone: 'unlock' });
+            pushToast(s, { text: `Welcome, ${s.userName}. Three branches revealed: Ethics, Worldview / Beliefs, Long-term Goals.`, tone: 'unlock' });
+          }),
+
+        setUserName: (name) =>
+          set((s) => {
+            if (name.trim()) s.userName = name.trim().slice(0, 60);
+          }),
+
+        exportData: () => {
+          const s = get();
+          return buildExport({
+            profile: s.profile,
+            userName: s.userName,
+            onboardedAt: s.onboardedAt,
+            responses: s.responses,
+            progress: s.progress,
+            files: s.files,
+            seen: s.seen,
+            dismissedTensions: s.dismissedTensions,
+            tensionContext: s.tensionContext,
+            deferred: s.deferred,
+          });
+        },
+
+        importData: (data) =>
+          set((s) => {
+            Object.assign(s, structuredClone(data), initialUi());
+            s.manualVersions = {};
+            s.toasts = [];
+            pushToast(s, { text: `Imported data${data.userName ? ` for ${data.userName}` : ''}. The previous browser data was replaced.` });
           }),
 
         setResponse: (qid, value, confidence) => {
@@ -508,6 +533,7 @@ export const useStore = create<Store>()(
       version: 1,
       partialize: (s) => ({
         profile: s.profile,
+        userName: s.userName,
         onboardedAt: s.onboardedAt,
         responses: s.responses,
         progress: s.progress,

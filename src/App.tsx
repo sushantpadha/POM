@@ -11,6 +11,7 @@ import { NodePanel } from './components/panels/NodePanel';
 import { FilePanel } from './components/panels/FilePanel';
 import { FloatingControls } from './components/floating/FloatingControls';
 import { EraseDialog, ResetDialog } from './components/dialogs/TopicDialogs';
+import { ImportDialog } from './components/dialogs/ImportDialog';
 
 export default function App() {
   const profile = useStore((s) => s.profile);
@@ -55,8 +56,9 @@ export default function App() {
       {dialog?.kind === 'about' && <AboutDialog />}
       {dialog?.kind === 'reset' && <ResetDialog fileId={dialog.fileId} />}
       {dialog?.kind === 'erase' && <EraseDialog fileId={dialog.fileId} />}
+      {dialog?.kind === 'import' && <ImportDialog />}
       <Toasts />
-      {profile === null && <DemoChooser />}
+      {profile === null && dialog?.kind !== 'import' && <DemoChooser />}
     </div>
   );
 }

@@ -20,12 +20,14 @@ const nodeClass = (page, id) => page.getAttribute(`[data-node="${id}"]`, 'class'
   await page.click('text=Start fresh');
   assert(await page.$$eval('[data-node]', (n) => n.length) === 4, 'only root + 3 undiscovered placeholders before onboarding');
   await page.click('button:has-text("Begin onboarding")');
+  await page.fill('.name-field input', 'Sam');
   for (let i = 0; i < 3; i++) await page.click('.onb-nav button.primary');
   assert(await page.isDisabled('text=Agree and reveal the map'), 'continue disabled without consent');
   await page.click('text=I consent to my answers');
   await page.click('text=I understand this is not a clinical tool');
   await page.click('text=Agree and reveal the map');
   await page.waitForTimeout(800);
+  assert((await page.textContent('.profile-pill')).includes('Sam'), 'onboarding name shown in the top bar');
   for (const id of ['ethics', 'worldview', 'goals']) assert((await nodeClass(page, id)).includes('available'), `${id} revealed`);
   assert((await nodeClass(page, 'eth-family')).includes('locked'), 'eth-family still undiscovered');
 
@@ -149,6 +151,27 @@ const nodeClass = (page, id) => page.getAttribute(`[data-node="${id}"]`, 'class'
   
   await page.click('.dialog button:has-text("Erase topic data")');
   assert(await page.isVisible('.empty:has-text("No notes yet")'), 'erase removes notes');
+  // ── Export / import ──
+  const answersBefore = await page.textContent('.topbar-stat b');
+  await page.click('.profile-pill');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('text=Export data (.json)')]);
+  const exportPath = await download.path();
+  assert(/personal-operating-model-.*\.json/.test(download.suggestedFilename()), 'export downloads a JSON file');
+  await page.click('.profile-pill');
+  await page.click('text=Fresh start — from onboarding');
+  assert((await page.textContent('.topbar-stat b')) === '0', 'switched to an empty fresh start');
+  await page.click('.profile-pill');
+  await page.click('text=Import data…');
+  await page.setInputFiles('.dialog input[type=file]', exportPath);
+  assert(await page.waitForSelector('.callout:has-text("Ready to import")'), 'import previews the file');
+  await page.click('button:has-text("Replace and import")');
+  assert((await page.textContent('.topbar-stat b')) === answersBefore, `import restores answers (${answersBefore})`);
+  assert((await page.textContent('.profile-pill')).includes('Priya'), 'import restores the name');
+  await page.click('.profile-pill');
+  await page.click('text=Import data…');
+  await page.setInputFiles('.dialog input[type=file]', { name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"x":1}') });
+  assert(await page.waitForSelector('.callout.danger'), 'invalid file is rejected');
+  assert(await page.isDisabled('button:has-text("Replace and import")'), 'cannot import an invalid file');
   console.log('errors:', errors);
   await browser.close();
 })().catch((e) => { console.error(e.message); process.exit(1); });

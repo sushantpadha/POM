@@ -25,9 +25,27 @@ On first load you choose a demo:
 
 You can switch demos or reset one from the profile menu in the top-right corner.
 
+## Deploying to GitHub Pages
+
+The app is a static site (relative asset paths), so it works from any Pages URL.
+
+1. In the repository settings, go to **Pages → Build and deployment → Source** and choose **GitHub Actions** (one-time).
+2. Open **Actions → Deploy to GitHub Pages → Run workflow**. The workflow runs only when you trigger it manually; it
+   runs the unit tests, builds and publishes `dist/`.
+
+Every visitor gets their own independent copy of the data in their own browser — nothing is shared between visitors.
+
+## Your data: name, export and import
+
+- Onboarding asks what to call you. This is a local display name only — there are no accounts or passwords.
+- **Export data** (profile menu or *Data & consent*) downloads one JSON file with your name, answers, notes, file
+  versions and maintenance state. It is not encrypted.
+- **Import data** validates the file, shows what it contains and asks before replacing the data in this browser. Use it
+  to back up, move to another device or browser, or restore from the first-visit screen.
+
 ## Suggested walkthrough
 
-1. **Start fresh.** Click *Who am I?*, go through the four onboarding steps and give preliminary consent. The three
+1. **Start fresh.** Click *Who am I?*, enter a name, go through the four onboarding steps and give preliminary consent. The three
    branches appear.
 2. Double-click **Ethics** (or select it and click *Take questionnaire*). Answer the first question. Its `#idealism`
    tag unlocks *Harm & Consequences* straight away. Answer the family question to unlock *Obligations to Elders &

@@ -18,6 +18,9 @@ const STEPS = ['Purpose', 'Your data & AI', 'Question types', 'Consent'];
 export function Onboarding() {
   const onboardedAt = useStore((s) => s.onboardedAt);
   const completeOnboarding = useStore((s) => s.completeOnboarding);
+  const storedName = useStore((s) => s.userName);
+  const setUserName = useStore((s) => s.setUserName);
+  const [name, setName] = useState(storedName ?? '');
   const [step, setStep] = useState(onboardedAt ? 3 : 0);
   const [consent, setConsent] = useState(!!onboardedAt);
   const [understandsAi, setUnderstandsAi] = useState(!!onboardedAt);
@@ -43,6 +46,28 @@ export function Onboarding() {
         {step === 0 && (
           <>
             <h1>Who am I?</h1>
+            <label className="name-field">
+              <span>What should we call you?</span>
+              <div className="row">
+                <input
+                  className="input"
+                  value={name}
+                  maxLength={60}
+                  placeholder="Your first name or a nickname"
+                  onChange={(e) => setName(e.target.value)}
+                  aria-label="Your name"
+                  autoFocus={!onboardedAt}
+                />
+                {onboardedAt && (
+                  <button className="btn" disabled={!name.trim() || name.trim() === storedName} onClick={() => setUserName(name)}>
+                    Save
+                  </button>
+                )}
+              </div>
+              <small className="faint">
+                Only used to address you in this browser. It is not an account and there is no password.
+              </small>
+            </label>
             <p className="lead">
               The Personal Operating Model helps you build an evolving, editable record of your ethics, your worldview and
               your long-term goals — so you can see how they fit together and how they change.
@@ -208,9 +233,20 @@ export function Onboarding() {
           ) : onboardedAt ? (
             <span className="faint" style={{ fontSize: 12.5 }}>Onboarding complete</span>
           ) : (
-            <button className="btn primary" disabled={!consent || !understandsAi} onClick={completeOnboarding}>
-              Agree and reveal the map
-            </button>
+            <div className="row">
+              {!name.trim() && (
+                <button className="btn ghost" onClick={() => setStep(0)}>
+                  Add your name first
+                </button>
+              )}
+              <button
+                className="btn primary"
+                disabled={!consent || !understandsAi || !name.trim()}
+                onClick={() => completeOnboarding(name)}
+              >
+                Agree and reveal the map
+              </button>
+            </div>
           )}
         </div>
       </div>

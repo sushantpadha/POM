@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
-import { Database, Network, Sprout, UserRound, X } from 'lucide-react';
+import { Database, Download, Network, Sprout, Upload, UserRound, X } from 'lucide-react';
+import { downloadExport } from './transfer';
 import { useStore, type Toast } from '../../store/store';
 import { fmtDateTime } from '../../logic/format';
 
 export function DemoChooser() {
   const chooseProfile = useStore((s) => s.chooseProfile);
+  const setDialog = useStore((s) => s.setDialog);
   return (
     <div className="scrim">
       <div className="dialog chooser" role="dialog" aria-modal="true" aria-labelledby="chooser-title">
@@ -34,7 +36,11 @@ export function DemoChooser() {
             </button>
           </div>
         </div>
-        <div className="dialog-foot" />
+        <div className="dialog-foot" style={{ justifyContent: 'flex-start' }}>
+          <button className="btn ghost" onClick={() => setDialog({ kind: 'import' })}>
+            <Upload size={13} /> Restore from an export file…
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -76,9 +82,20 @@ export function AboutDialog() {
             <li>
               <b>Control:</b> use a file’s menu to reset a topic or erase its notes, answers and history.
             </li>
+            <li>
+              <b>Backup &amp; moving devices:</b> export everything to a JSON file and import it in another browser. The
+              file is not encrypted — keep it private.
+            </li>
           </ul>
         </div>
         <div className="dialog-foot">
+          <button className="btn" onClick={downloadExport}>
+            <Download size={13} /> Export data
+          </button>
+          <button className="btn" onClick={() => setDialog({ kind: 'import' })}>
+            <Upload size={13} /> Import data…
+          </button>
+          <span className="grow" />
           <button className="btn" onClick={() => setDialog(null)}>Close</button>
         </div>
       </div>
