@@ -339,7 +339,11 @@ export const useStore = create<Store>()(
 
         proposeSummary: (fileId) => {
           const file = get().files[fileId];
-          const proposal = summarize(file, PREDEFINED_SUMMARIES[fileId]);
+          const predefined = PREDEFINED_SUMMARIES[fileId];
+          const proposal = summarize(
+            file,
+            predefined?.forVersion === file.current.versionId ? predefined.lines : undefined,
+          );
           if (!proposal) return false;
           set((s) => {
             s.files[fileId].proposal = proposal;

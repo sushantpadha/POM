@@ -54,7 +54,7 @@ export const TENSION_RULES: TensionRule[] = [
     id: 'strangers-obligation-vs-weight',
     title: 'Obligations to strangers vs. how much strangers weigh in decisions',
     summary:
-      'Your worldview notes say we have real obligations to strangers, but your ranking places strangers near the bottom of whose wellbeing weighs in major decisions. These can be consistent (a minimum duty vs. a priority) — your own note already wonders about this.',
+      'Your worldview notes say we have real obligations to strangers, but your ranking places strangers near the bottom of whose wellbeing weighs in major decisions. These can be consistent (a minimum duty vs. a priority).',
     a: { qids: ['WV-03', 'OTH-01'], test: atLeast(4) },
     b: { qids: ['OTH-02'], test: rankedInBottom('strangers', 2) },
     tags: ['others-obligation', 'circle-of-concern'],

@@ -33,13 +33,13 @@ predefined or rule-based and labelled as simulated.
 - [x] Demo chooser: fresh start vs. sample profile ("Priya", ~7 months of use)
 
 ### Pass 2 — maintenance layer
-- [ ] Provenance icons (hand / pencil / robot), per-line lock, entry metadata
-- [ ] File versioning (current + 5), history viewer, compare with current
-- [ ] Generated-update proposals after a questionnaire (preview → Commit / Cancel), locked lines protected
-- [ ] Simulated summarisation proposal (locked lines kept verbatim)
-- [ ] Changes over time (single file, vs. current)
-- [ ] Potential tensions (across files): inspect, add context, dismiss, linked retakes by tag
-- [ ] Suggested retakes (★): open / retake / defer
-- [ ] Ask the model (?): staged retrieval simulation, citations to files/entries/assessment items, disclaimer
-- [ ] Reset topic vs. Erase topic data dialogs
-- [ ] Unit tests for notes logic; end-to-end journey check in a headless browser
+- [x] Provenance icons (hand / pencil / robot), per-line lock, entry metadata
+- [x] File versioning (current + 5), history viewer, compare with current
+- [x] Generated-update proposals after a questionnaire (preview → Commit / Cancel), locked lines protected
+- [x] Simulated summarisation proposal (locked lines kept verbatim)
+- [x] Changes over time (single file, vs. current)
+- [x] Potential tensions (across files): inspect, add context, dismiss, linked retakes by tag
+- [x] Suggested retakes (★): open / retake / defer
+- [x] Ask the model (?): staged retrieval simulation, citations to files/entries/assessment items, disclaimer
+- [x] Reset topic vs. Erase topic data dialogs
+- [x] Unit tests for notes logic; end-to-end journey check in a headless browser

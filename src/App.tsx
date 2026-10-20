@@ -9,6 +9,8 @@ import { Questionnaire } from './components/questionnaire/Questionnaire';
 import { FileEditor } from './components/notes/FileEditor';
 import { NodePanel } from './components/panels/NodePanel';
 import { FilePanel } from './components/panels/FilePanel';
+import { FloatingControls } from './components/floating/FloatingControls';
+import { EraseDialog, ResetDialog } from './components/dialogs/TopicDialogs';
 
 export default function App() {
   const profile = useStore((s) => s.profile);
@@ -39,7 +41,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${panel ? 'with-panel' : ''}`}>
       <TopBar />
       <div className="body">
         <Sidebar />
@@ -49,7 +51,10 @@ export default function App() {
         </main>
         {panel}
       </div>
+      <FloatingControls />
       {dialog?.kind === 'about' && <AboutDialog />}
+      {dialog?.kind === 'reset' && <ResetDialog fileId={dialog.fileId} />}
+      {dialog?.kind === 'erase' && <EraseDialog fileId={dialog.fileId} />}
       <Toasts />
       {profile === null && <DemoChooser />}
     </div>
