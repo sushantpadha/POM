@@ -1,14 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type {
-  AnswerValue,
-  Entry,
-  EntryKind,
-  FileMode,
-  Profile,
-  Tab,
-} from '../types';
+import type { AnswerValue, Entry, EntryKind, Profile, View } from '../types';
 import { NODE_BY_ID } from '../data/nodes';
 import { PREDEFINED_SUMMARIES } from '../data/files';
 import {
@@ -24,8 +17,7 @@ import { commitVersion, generateUpdate, nowIso, summarize, summarizeBranch, uid 
 import { MODEL, nodesForFile, questionsForFile } from './model';
 import { buildExport, type ExportFile, type PortableData } from '../logic/transfer';
 
-export type FloatingPanel = 'ask' | 'retakes' | 'tensions' | null;
-export type Dialog = { kind: 'reset' | 'erase'; fileId: string } | { kind: 'about' } | { kind: 'import' } | null;
+export type Dialog = { kind: 'reset' | 'erase'; fileId: string } | { kind: 'import' } | null;
 
 export interface Toast {
   id: string;
@@ -37,27 +29,21 @@ export interface Toast {
 type Data = PortableData;
 
 interface Ui {
-  tabs: Tab[];
-  activeTab: number;
-  selectedNodeId: string | null;
-  fileModes: Record<string, FileMode>;
-  /** Version currently inspected in the history view, per file. */
-  inspectVersion: Record<string, string | undefined>;
-  highlight: { fileId: string; entryId: string; at: number } | null;
-  selectedEntry: { fileId: string; entryId: string } | null;
+  view: View;
+  highlight: { fileId: string; entryId: string } | null;
   focusQuestion: { nodeId: string; questionId: string } | null;
-  floating: FloatingPanel;
-  tensionFocus: string | null;
   dialog: Dialog;
   toasts: Toast[];
-  graphResetCounter: number;
   /** Manual-edit versions created during this browser session, so edits coalesce into one version. */
   manualVersions: Record<string, string>;
 }
 
 interface Actions {
   chooseProfile: (p: Profile) => void;
-  completeOnboarding: (name: string) => void;
+  completeOnboarding: (name: string, aiEnabled: boolean) => void;
+  setAiEnabled: (on: boolean) => void;
+  ackMilestone: (n: number) => void;
+  acceptEntry: (fileId: string, entryId: string) => void;
   setUserName: (name: string) => void;
   exportData: () => ExportFile;
   importData: (data: PortableData) => void;
@@ -81,20 +67,13 @@ interface Actions {
   deferRetake: (nodeId: string, days: number) => void;
   undeferRetake: (nodeId: string) => void;
   // UI
-  selectNode: (id: string | null) => void;
-  selectEntry: (fileId: string, entryId: string | null) => void;
-  openTab: (tab: Tab) => void;
-  closeTab: (index: number) => void;
-  setActiveTab: (index: number) => void;
-  openFile: (fileId: string, opts?: { entryId?: string; mode?: FileMode }) => void;
-  openQuestionnaire: (nodeId: string, questionId?: string) => void;
-  setFileMode: (fileId: string, mode: FileMode) => void;
-  setInspectVersion: (fileId: string, versionId: string | undefined) => void;
-  setFloating: (p: FloatingPanel, tensionFocus?: string | null) => void;
+  go: (view: View) => void;
+  openFile: (fileId: string, opts?: { entryId?: string; mode?: 'read' | 'edit' | 'history' }) => void;
+  openReflection: (nodeId: string, questionId?: string) => void;
+  showTopic: (nodeId: string) => void;
   setDialog: (d: Dialog) => void;
-  toast: (t: Omit<Toast, 'id'>) => void;
+  toast: (text: string) => void;
   dismissToast: (id: string) => void;
-  resetGraphView: () => void;
 }
 
 export type Store = Data & Ui & Actions;
@@ -112,6 +91,8 @@ function freshData(): Data {
     dismissedTensions: [],
     tensionContext: {},
     deferred: {},
+    aiEnabled: false,
+    milestonesAck: [],
   };
 }
 
@@ -127,36 +108,26 @@ function sampleData(): Data {
     dismissedTensions: [],
     tensionContext: {},
     deferred: {},
+    aiEnabled: true,
+    milestonesAck: [],
   };
 }
 
 const initialUi = (): Omit<Ui, 'toasts' | 'manualVersions'> => ({
-  tabs: [{ kind: 'graph' }],
-  activeTab: 0,
-  selectedNodeId: null,
-  fileModes: {},
-  inspectVersion: {},
+  view: { name: 'journal' },
   highlight: null,
-  selectedEntry: null,
   focusQuestion: null,
-  floating: null,
-  tensionFocus: null,
   dialog: null,
-  graphResetCounter: 0,
 });
+
+/** Pause before the 10th, 20th, … topic: no celebration, just a chance to stop. */
+export const MILESTONE_EVERY = 10;
 
 /** Forget completion dates for nodes that no longer have any answers. */
 function clearEmptyProgress(s: Data, nodeIds: string[]) {
   for (const id of nodeIds) {
     if (!MODEL.questionsByNode[id].some((q) => s.responses[q.id])) delete s.progress[id];
   }
-}
-
-function sameTab(a: Tab, b: Tab): boolean {
-  if (a.kind !== b.kind) return false;
-  if (a.kind === 'file' && b.kind === 'file') return a.fileId === b.fileId;
-  if (a.kind === 'questionnaire' && b.kind === 'questionnaire') return a.nodeId === b.nodeId;
-  return true;
 }
 
 function available(d: Pick<Data, 'responses' | 'onboardedAt'>) {
@@ -184,8 +155,7 @@ export const useStore = create<Store>()(
       };
 
       const pushToast = (s: Store, t: Omit<Toast, 'id'>) => {
-        s.toasts.push({ ...t, id: uid('t') });
-        if (s.toasts.length > 3) s.toasts.shift();
+        s.toasts = [{ ...t, id: uid('t') }]; // one message at a time
       };
 
       return {
@@ -197,6 +167,8 @@ export const useStore = create<Store>()(
         dismissedTensions: [],
         tensionContext: {},
         deferred: {},
+        aiEnabled: false,
+        milestonesAck: [],
         ...initialUi(),
         toasts: [],
         manualVersions: {},
@@ -206,18 +178,26 @@ export const useStore = create<Store>()(
             Object.assign(s, p === 'sample' ? sampleData() : freshData(), initialUi());
             s.manualVersions = {};
             s.toasts = [];
-            s.selectedNodeId = p === 'fresh' ? 'root' : null;
           }),
 
-        completeOnboarding: (name) =>
+        completeOnboarding: (name, aiEnabled) =>
           set((s) => {
             s.userName = name.trim().slice(0, 60);
+            s.aiEnabled = aiEnabled;
             s.onboardedAt = nowIso();
-            if (!s.seen.includes('root')) s.seen.push('root');
-            s.tabs = s.tabs.filter((t) => t.kind !== 'onboarding');
-            s.activeTab = 0;
-            s.selectedNodeId = 'root';
-            pushToast(s, { text: `Welcome, ${s.userName}. Ethics, Worldview / Beliefs and Long-term Goals are now open.`, tone: 'unlock' });
+            s.view = { name: 'journal' };
+          }),
+
+        setAiEnabled: (on) => set((s) => void (s.aiEnabled = on)),
+        ackMilestone: (n) =>
+          set((s) => {
+            if (!s.milestonesAck.includes(n)) s.milestonesAck.push(n);
+          }),
+        acceptEntry: (fileId, entryId) =>
+          set((s) => {
+            // Keeping a summary line is metadata (like a lock): it stays labelled as AI text.
+            const e = s.files[fileId].current.entries.find((x) => x.id === entryId);
+            if (e) e.accepted = true;
           }),
 
         setUserName: (name) =>
@@ -238,6 +218,8 @@ export const useStore = create<Store>()(
             dismissedTensions: s.dismissedTensions,
             tensionContext: s.tensionContext,
             deferred: s.deferred,
+            aiEnabled: s.aiEnabled,
+            milestonesAck: s.milestonesAck,
           });
         },
 
@@ -246,7 +228,7 @@ export const useStore = create<Store>()(
             Object.assign(s, structuredClone(data), initialUi());
             s.manualVersions = {};
             s.toasts = [];
-            pushToast(s, { text: `Imported data${data.userName ? ` for ${data.userName}` : ''}. The previous browser data was replaced.` });
+            pushToast(s, { text: 'Imported.' });
           }),
 
         setResponse: (qid, value, confidence) => {
@@ -363,7 +345,6 @@ export const useStore = create<Store>()(
             const { kind: _k, protectedIds: _p, ...version } = file.proposal;
             s.files[fileId] = commitVersion(file, version);
             delete s.manualVersions[fileId];
-            pushToast(s, { text: `Saved a new version of ${fileId}.` });
           }),
 
         cancelProposal: (fileId) =>
@@ -385,7 +366,6 @@ export const useStore = create<Store>()(
           if (!proposal) return false;
           set((s) => {
             s.files[fileId].proposal = proposal;
-            s.fileModes[fileId] = 'notes';
           });
           return true;
         },
@@ -403,8 +383,7 @@ export const useStore = create<Store>()(
             });
             s.files[fileId].proposal = file.proposal;
             delete s.manualVersions[fileId];
-            s.inspectVersion[fileId] = undefined;
-            s.fileModes[fileId] = 'notes';
+            s.view = { name: 'note', fileId };
           }),
 
         resetTopic: (fileId, retainResponses) =>
@@ -425,7 +404,7 @@ export const useStore = create<Store>()(
             s.files[fileId] = commitVersion(file, next);
             delete s.manualVersions[fileId];
             s.dialog = null;
-            pushToast(s, { text: `Reset ${fileId}. The previous version is still in history.` });
+            pushToast(s, { text: 'Topic reset. The previous version is in its history.' });
           }),
 
         eraseTopic: (fileId) =>
@@ -442,7 +421,7 @@ export const useStore = create<Store>()(
             delete s.manualVersions[fileId];
             for (const [tid, ctx] of Object.entries(s.tensionContext)) if (ctx.fileId === fileId) delete s.tensionContext[tid];
             s.dialog = null;
-            pushToast(s, { text: `Erased ${fileId}: notes, history and linked responses removed.`, tone: 'warn' });
+            pushToast(s, { text: 'Topic erased.' });
           }),
 
         dismissTension: (id) =>
@@ -457,7 +436,6 @@ export const useStore = create<Store>()(
           const entryId = get().addEntry(fileId, null, `Context: ${text}`, 'li');
           set((s) => {
             s.tensionContext[id] = { fileId, entryId };
-            pushToast(s, { text: `Context added to ${fileId} as a human-written note.` });
           });
         },
 
@@ -471,80 +449,51 @@ export const useStore = create<Store>()(
           }),
 
         // ── UI ────────────────────────────────────────────────
-        selectNode: (id) =>
+        go: (view) =>
           set((s) => {
-            s.selectedNodeId = id;
-            if (id && !s.seen.includes(id)) s.seen.push(id);
+            s.view = view;
+            s.highlight = null;
           }),
 
-        selectEntry: (fileId, entryId) =>
+        openFile: (fileId, opts) =>
           set((s) => {
-            s.selectedEntry = entryId ? { fileId, entryId } : null;
+            s.view = { name: 'note', fileId, mode: opts?.mode ?? 'read' };
+            s.highlight = opts?.entryId ? { fileId, entryId: opts.entryId } : null;
           }),
 
-        openTab: (tab) =>
+        openReflection: (nodeId, questionId) =>
           set((s) => {
-            const i = s.tabs.findIndex((t) => sameTab(t, tab));
-            if (i >= 0) s.activeTab = i;
-            else {
-              s.tabs.push(tab);
-              s.activeTab = s.tabs.length - 1;
-            }
-          }),
-
-        closeTab: (index) =>
-          set((s) => {
-            if (index === 0) return; // the graph tab is permanent
-            s.tabs.splice(index, 1);
-            if (s.activeTab >= index) s.activeTab = Math.max(0, s.activeTab - 1);
-          }),
-
-        setActiveTab: (index) => set((s) => void (s.activeTab = index)),
-
-        openFile: (fileId, opts) => {
-          get().openTab({ kind: 'file', fileId });
-          set((s) => {
-            if (opts?.mode) s.fileModes[fileId] = opts.mode;
-            else if (opts?.entryId) s.fileModes[fileId] = 'notes';
-            s.highlight = opts?.entryId ? { fileId, entryId: opts.entryId, at: Date.now() } : null;
-            if (opts?.entryId) s.selectedEntry = { fileId, entryId: opts.entryId };
-          });
-        },
-
-        openQuestionnaire: (nodeId, questionId) => {
-          if (nodeId === 'root') {
-            get().openTab({ kind: 'onboarding' });
-            return;
-          }
-          get().openTab({ kind: 'questionnaire', nodeId });
-          set((s) => {
-            if (!s.seen.includes(nodeId)) s.seen.push(nodeId);
-            s.selectedNodeId = nodeId;
             s.focusQuestion = questionId ? { nodeId, questionId } : null;
-          });
-        },
-
-        setFileMode: (fileId, mode) => set((s) => void (s.fileModes[fileId] = mode)),
-        setInspectVersion: (fileId, versionId) => set((s) => void (s.inspectVersion[fileId] = versionId)),
-        setFloating: (p, tensionFocus = null) =>
-          set((s) => {
-            s.floating = p;
-            s.tensionFocus = tensionFocus;
+            // Before starting the 10th, 20th… new topic, pause instead.
+            const done = Object.entries(s.progress).filter(([id, p]) => id !== nodeId && p.completedAt).length;
+            const n = done + 1;
+            const isNew = !s.progress[nodeId]?.completedAt;
+            if (isNew && n % MILESTONE_EVERY === 0 && !s.milestonesAck.includes(n)) {
+              s.view = { name: 'pause', nodeId, count: done };
+              return;
+            }
+            s.view = { name: 'reflect', nodeId };
           }),
+
+        showTopic: (nodeId) => set((s) => void (s.view = { name: 'map', nodeId })),
         setDialog: (d) => set((s) => void (s.dialog = d)),
-        toast: (t) => set((s) => pushToast(s, t)),
+        toast: (text) => set((s) => pushToast(s, { text })),
         dismissToast: (id) =>
           set((s) => {
             s.toasts = s.toasts.filter((t) => t.id !== id);
           }),
-        resetGraphView: () => set((s) => void (s.graphResetCounter += 1)),
       };
     }),
     {
       name: 'pom-prototype-v1',
       // v2 replaced the question set with the writeup's items; older saved state can't be mapped onto it.
-      version: 2,
-      migrate: () => ({}) as Partial<Store>,
+      // v3 replaced tabs with a single view.
+      version: 3,
+      migrate: (old, version) => {
+        if (version < 2) return {} as Partial<Store>;
+        const o = old as Partial<Store>;
+        return { ...o, view: { name: 'journal' }, aiEnabled: o.aiEnabled ?? true, milestonesAck: o.milestonesAck ?? [] } as Partial<Store>;
+      },
       partialize: (s) => ({
         profile: s.profile,
         userName: s.userName,
@@ -556,10 +505,9 @@ export const useStore = create<Store>()(
         dismissedTensions: s.dismissedTensions,
         tensionContext: s.tensionContext,
         deferred: s.deferred,
-        tabs: s.tabs,
-        activeTab: s.activeTab,
-        selectedNodeId: s.selectedNodeId,
-        fileModes: s.fileModes,
+        aiEnabled: s.aiEnabled,
+        milestonesAck: s.milestonesAck,
+        view: s.view,
       }),
     },
   ),

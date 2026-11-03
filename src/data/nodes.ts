@@ -64,7 +64,7 @@ export const NODES: GraphNode[] = [
     tag: 'family-duty',
     branch: 'ethics',
     description:
-      'What you feel you owe parents and family, and where that stops. Opened from both Ethics and Long-term Goals.',
+      'What you feel you owe parents and family, and where that stops.',
     parentTags: ['family-duty', 'relationships'],
     fileId: 'ethics/family-obligations',
   },
@@ -74,7 +74,7 @@ export const NODES: GraphNode[] = [
     tag: 'tradeoff',
     branch: 'ethics',
     description:
-      'What you would do when family and an opportunity pull in different directions. Opened from Family Relationships and from Personal Projects.',
+      'What you would do when family and an opportunity pull in different directions.',
     parentTags: ['filial-limits', 'project-cost'],
     fileId: 'ethics/family-obligations',
   },
@@ -95,7 +95,7 @@ export const NODES: GraphNode[] = [
     tag: 'purpose',
     branch: 'worldview',
     description:
-      'Whether your life feels meaningful now, and whether you are looking for more meaning. Opened from Worldview and from Aspirations.',
+      'Whether your life feels meaningful now, and whether you are looking for more meaning.',
     parentTags: ['purpose', 'aspiration-tradeoff'],
     fileId: 'worldview/main',
   },

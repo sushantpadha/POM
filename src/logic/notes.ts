@@ -57,17 +57,6 @@ export function generateUpdate(
       existing.updatedAt = now;
       changed = true;
     } else {
-      if (!entries.some((e) => e.kind === 'h')) {
-        entries.unshift({
-          id: uid('e'),
-          kind: 'h',
-          text: 'From your answers',
-          createdAt: now,
-          updatedAt: now,
-          provenance: 'auto',
-          locked: false,
-        });
-      }
       entries.push({
         id: uid('e'),
         kind,
