@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ChevronRight, FilePlus2, Play } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useStore } from '../../store/store';
-import { MODEL, nodesForFile } from '../../store/model';
+import { nodesForFile } from '../../store/model';
 import { NODE_BY_ID } from '../../data/nodes';
 import { useDerived } from '../../hooks/useDerived';
 import { fmtDate } from '../../logic/format';
@@ -41,13 +41,7 @@ export function FileEditor({ fileId }: { fileId: string }) {
         </div>
         <h1 className="file-title">{file.title}</h1>
         <div className="file-meta">
-          <span>Current version {fmtDate(file.current.createdAt)} · {file.current.reason}</span>
-          <span>{file.history.length} earlier version{file.history.length === 1 ? '' : 's'} kept</span>
-          {nodeIds.map((id) => (
-            <span key={id} className="chip" title="Questionnaire feeding this file">
-              {NODE_BY_ID[id].name}
-            </span>
-          ))}
+          <span>Updated {fmtDate(file.current.createdAt)}</span>
         </div>
         <FileToolbar fileId={fileId} />
       </div>
@@ -63,25 +57,22 @@ export function FileEditor({ fileId }: { fileId: string }) {
           <>
             {file.current.entries.length === 0 ? (
               <div className="empty">
-                <FilePlus2 size={22} style={{ color: 'var(--text-faint)' }} />
                 <h3>No notes yet</h3>
                 <p>
-                  Notes appear here after you submit {nodeIds.map((id) => NODE_BY_ID[id].name).join(' or ')} — or write your
-                  own below.
+                  {name === 'main'
+                    ? 'This file holds a summary of the topic files in this folder. Use Summarise once they have notes, or write your own below.'
+                    : `Notes appear here when you save answers in ${nodeIds.map((id) => NODE_BY_ID[id].name).join(' or ')}. You can also write your own below.`}
                 </p>
                 {nodeIds
                   .filter((id) => status[id] !== 'locked')
                   .slice(0, 1)
                   .map((id) => (
                     <button key={id} className="btn" onClick={() => openQuestionnaire(id)}>
-                      <Play size={13} /> Open {NODE_BY_ID[id].name}
+                      Answer {NODE_BY_ID[id].name}
                     </button>
                   ))}
                 {nodeIds.every((id) => status[id] === 'locked') && (
-                  <p className="faint" style={{ margin: 0 }}>
-                    Its questionnaire is still undiscovered (needs{' '}
-                    {[...new Set(nodeIds.flatMap((id) => NODE_BY_ID[id].parentTags))].map((t) => `#${t}`).join(' or ')}).
-                  </p>
+                  <p className="faint" style={{ margin: 0 }}>Its questions are not open yet.</p>
                 )}
               </div>
             ) : (
@@ -102,17 +93,14 @@ export function FileEditor({ fileId }: { fileId: string }) {
               <span className="faint" style={{ fontSize: 11, textAlign: 'right' }}>new</span>
               <input
                 value={draft}
-                placeholder="Add a note — saved as human-written (## heading, - bullet, > quote)"
+                placeholder="Add your own note"
+                title="Start with ## for a heading, - for a bullet, > for a quote"
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && add()}
                 onBlur={add}
                 aria-label="Add a note"
               />
             </div>
-            <p className="faint" style={{ fontSize: 11.5, marginTop: 14 }}>
-              {MODEL.questions.filter((q) => nodeIds.includes(q.nodeId)).length} assessment items feed this file. Lines keep
-              their own timestamps and provenance; the file keeps its versions.
-            </p>
           </>
         )}
       </div>

@@ -43,3 +43,10 @@ predefined or rule-based and labelled as simulated.
 - [x] Ask the model (?): staged retrieval simulation, citations to files/entries/assessment items, disclaimer
 - [x] Reset topic vs. Erase topic data dialogs
 - [x] Unit tests for notes logic; end-to-end journey check in a headless browser
+
+### Pass 3 — align with the writeups, polish
+- [x] Replace the question bank with Doc 2's items (E1–E5, W1–W5, G1–G5) and the file each one updates
+- [x] Deeper items paraphrased from the cited instruments (EPQ-5, Rotter, MLQ, PPA, Aspiration Index)
+- [x] Family Relationships node with two parents, as in Doc 2
+- [x] Quieter, muted theme; less on screen; plainer, more honest wording
+- [x] Spec review with flagged issues (`SPEC_REVIEW.md`)

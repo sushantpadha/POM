@@ -83,8 +83,8 @@ export function answer(
       interpretation: [
         {
           text: hits.length
-            ? `${hits.length} note${hits.length > 1 ? 's come' : ' comes'} from answers you rated “unsure” or “very unsure”. They may describe you less reliably than the rest — retaking ${nodes.map((n) => MODEL.nodes.find((x) => x.id === n)!.name).join(' and ')} could firm them up or show they have changed.`
-            : 'None of your current notes come from answers you marked as low-confidence.',
+            ? `${hits.length} note${hits.length > 1 ? 's come' : ' comes'} from answers you marked as unsure. You might want to retake ${nodes.map((n) => MODEL.nodes.find((x) => x.id === n)!.name).join(' and ')}.`
+            : 'None of your current notes come from answers you marked as unsure.',
           cites: reported.map((r) => r.cite),
         },
       ],
@@ -102,8 +102,8 @@ export function answer(
     const interpretation = spec.interpretation
       .map((p) => {
         const hits = p.refs.map((r) => resolve(r, files)).filter((x): x is NonNullable<typeof x> => !!x);
-        // Drop an interpretation once most of what it was based on is gone.
-        if (hits.length * 2 < p.refs.length || hits.length === 0) return null;
+        // A reading disappears as soon as any note it cites is gone.
+        if (hits.length < p.refs.length) return null;
         return { text: p.text, cites: hits.map((h) => cite(h.fileId, h.entry)) };
       })
       .filter((x): x is NonNullable<typeof x> => !!x);
@@ -141,7 +141,7 @@ export function answer(
     interpretation: [
       {
         text: reported.length
-          ? `I retrieved ${reported.length} relevant line${reported.length > 1 ? 's' : ''} from ${dims.map((d) => DIM_LABEL[d]).join(', ')}. This prototype only has predefined interpretations for the example questions, so this answer just collects what your notes say rather than interpreting them.`
+          ? `These are the most relevant lines from ${dims.map((d) => DIM_LABEL[d]).join(', ')}. The prototype has no AI, so it can only quote your notes here, not interpret them.`
           : 'There are no notes in these areas yet. Answer some questions first, then ask again.',
         cites: reported.slice(0, 3).map((r) => r.cite),
       },

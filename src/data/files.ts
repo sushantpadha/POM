@@ -21,29 +21,24 @@ export const DIRS: { id: NoteFile['dir']; branch: 'ethics' | 'worldview' | 'goal
 ];
 
 /**
- * Predefined "AI" summaries for the simulated summarise action. Each one is only
- * valid for the sample-profile version it was written against; any other content
- * falls back to a rule-based condensation.
+ * Pre-written summaries for the summarise action. Each one is only used for the
+ * exact sample-profile version it was written against; anything else gets the
+ * rule-based condensation in logic/notes.ts.
  */
 export const PREDEFINED_SUMMARIES: Record<string, { forVersion: string; lines: string[] }> = {
-  'ethics/main': { forVersion: 'em-v5', lines: [
-    'Strong **idealism**: harm to others is treated as close to an absolute limit.',
-    'Undecided on relativism, but prefers firm rules to case-by-case judgement.',
-    'Family situations are where these principles are tested most — see [[ethics/family-obligations]].',
+  'ethics/moral-principles': { forVersion: 'mp-v3', lines: [
+    'Judges actions mainly by their consequences, and treats risking harm to others as close to unacceptable.',
+    'Thinks lying depends on circumstances, but sees moral standards as shared rather than personal.',
   ] },
-  'ethics/family-obligations': { forVersion: 'fo-v4', lines: [
-    'Family obligations are rated **highly important** and seen as part of a good life.',
-    'Being nearby and reachable matters more than hands-on daily care; the named limit is missing irreplaceable moments.',
-    'Concrete commitment: be in Pune for Aai’s surgery recovery in spring 2027.',
+  'ethics/family-obligations': { forVersion: 'fo-v5', lines: [
+    'Owes elders a lot (8/10), out of gratitude rather than obedience.',
+    'The limit named is being absent for moments that can’t be repeated.',
   ] },
   'long-term-goals/main': { forVersion: 'gm-v4', lines: [
-    'One high-importance goal: a research career in early disease detection, motivated by a family illness.',
-    'Now likely to involve relocation (Zurich offer); career ranked first for the next ten years.',
-    'Priorities flagged as shifting — a retake is planned after talking with family.',
+    'Career moved ahead of family in the ten-year ranking in September; close relationships still rated 9/10.',
   ] },
-  'worldview/main': { forVersion: 'wm-v5', lines: [
-    'Sees effort as the main driver of outcomes, but less firmly than in March.',
-    'Trusts scientific evidence first, then personal experience.',
-    'Holds that we have real obligations to strangers.',
+  'long-term-goals/career': { forVersion: 'ca-v4', lines: [
+    'Current project: an MSc thesis on early cancer detection — important (9/10), enjoyable, and costly in time with family (7/10).',
+    'Ten-year picture: leading a small team building open diagnostic tools, close enough to home to visit often.',
   ] },
 };

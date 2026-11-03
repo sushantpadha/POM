@@ -83,7 +83,9 @@ export function parseExport(text: string): ParseResult {
     return { ok: false, error: 'The export is missing answers, progress or notes.' };
   }
   for (const [qid, r] of Object.entries(d.responses)) {
-    if (!QUESTION_BY_ID[qid]) return { ok: false, error: `Unknown question ID “${qid}”.` };
+    if (!QUESTION_BY_ID[qid]) {
+      return { ok: false, error: `This export uses question “${qid}”, which is not in the current question set (it may come from an older version).` };
+    }
     if (!isObj(r) || !('value' in r) || typeof r.answeredAt !== 'string') {
       return { ok: false, error: `Answer ${qid} is malformed.` };
     }

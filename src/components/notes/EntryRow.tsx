@@ -78,7 +78,7 @@ export function EntryRow({ fileId, entry, selected, flash, onSelect }: Props) {
         <ProvenanceIcon p={entry.provenance} />
         <button
           className={`lock-btn ${entry.locked ? 'on' : ''}`}
-          title={entry.locked ? 'Locked — protected from automatic updates. Click to unlock.' : 'Lock this line'}
+          title={entry.locked ? 'Locked: never changed automatically. Click to unlock.' : 'Lock this line'}
           aria-label={entry.locked ? 'Unlock line' : 'Lock line'}
           aria-pressed={entry.locked}
           onClick={() => toggleLock(fileId, entry.id)}
@@ -112,7 +112,7 @@ export function EntryRow({ fileId, entry, selected, flash, onSelect }: Props) {
         <div
           className={`entry-text ${entry.kind}`}
           onClick={startEdit}
-          title={entry.locked ? 'Locked line — unlock to edit' : 'Click to edit'}
+          title={entry.locked ? 'Locked — unlock to edit' : 'Click to edit'}
         >
           <RichText text={entry.text} />
         </div>

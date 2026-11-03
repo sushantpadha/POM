@@ -1,115 +1,98 @@
 # Personal Operating Model — web prototype
 
-An interactive frontend prototype of a research-informed self-assessment system. It builds an evolving,
-user-editable knowledge base of a person’s **ethics**, **worldview / beliefs** and **long-term goals**.
+A prototype for putting your **ethics**, **worldview / beliefs** and **long-term goals** into words you can read,
+edit and question. It follows the group's *Prototype and Flow Development* writeup (Doc 2). Where the prototype differs
+from that writeup, or from the original project idea (Doc 1), the difference is listed in
+[`SPEC_REVIEW.md`](SPEC_REVIEW.md).
 
-The prototype is frontend-only. AI summarisation, potential-tension detection and “Ask the model” are **simulated**
-with predefined outputs and simple rules. There is no backend and no authentication. State is kept in the browser’s
-`localStorage`.
+The prototype has no backend, no accounts and **no AI service**:
+- Summaries and "Ask your model" answers are pre-written for the sample profile. For anything else they are made by simple rules.
+- Potential tensions and retake suggestions are fixed rules applied to your actual answers.
+- Everything is stored in the browser's `localStorage`.
 
 ## Running it
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
-npm test           # unit tests: graph logic (DAG, OR-unlocking, progress) and notes logic (versions, locks, diff, tensions)
-npm run build      # type-check + production build into dist/
-node scripts/e2e-journey.cjs   # with the dev server running; needs Playwright — walks the full journey
+npm run dev                    # http://localhost:5173
+npm test                       # unit tests: graph, notes/versions, tensions, export/import
+npm run build                  # type-check + production build into dist/
+node scripts/e2e-journey.cjs   # with the dev server running; needs Playwright
 ```
 
-On first load you choose a demo:
-
-- **Start fresh** begins at *Who am I?* with onboarding and consent, then an empty knowledge base.
-- **Explore a sample profile** loads *Priya*, an MSc student seven months in, weighing a PhD offer in Zurich against
-  family commitments. It includes file history, potential tensions and retake suggestions.
-
-You can switch demos or reset one from the profile menu in the top-right corner.
+On first load, choose **Start fresh** (consent, then your own answers) or **Look at a sample**. The sample is
+Priya, a fictional MSc student weighing a PhD offer abroad against family commitments. You can switch later from the
+menu at the top right.
 
 ## Deploying to GitHub Pages
 
-The app is a static site (relative asset paths), so it works from any Pages URL.
+1. In the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions** (one time).
+2. Run **Actions → Deploy to GitHub Pages → Run workflow**. It only runs when started by hand. It tests, builds and
+   publishes `dist/`.
 
-1. In the repository settings, go to **Pages → Build and deployment → Source** and choose **GitHub Actions** (one-time).
-2. Open **Actions → Deploy to GitHub Pages → Run workflow**. The workflow runs only when you trigger it manually; it
-   runs the unit tests, builds and publishes `dist/`.
+Each visitor's data stays in their own browser. Data saved by an earlier build with the old question set is discarded
+on first load, because the old question IDs don't map onto the new items.
 
-Every visitor gets their own independent copy of the data in their own browser — nothing is shared between visitors.
+## Your data
 
-## Your data: name, export and import
+- Onboarding asks what to call you. This is a display name only; there is no account and no password.
+- **Export** downloads one unencrypted JSON file with your name, answers, notes and file versions. **Import** checks
+  the file and asks before replacing what is in the browser.
+- Each topic file has **Reset topic**, which clears generated lines and keeps your own and locked lines. You can choose
+  whether to keep the answers. It also has **Erase topic data**, which removes the notes, their history and the linked
+  answers after you type the file name to confirm.
 
-- Onboarding asks what to call you. This is a local display name only — there are no accounts or passwords.
-- **Export data** (profile menu or *Data & consent*) downloads one JSON file with your name, answers, notes, file
-  versions and maintenance state. It is not encrypted.
-- **Import data** validates the file, shows what it contains and asks before replacing the data in this browser. Use it
-  to back up, move to another device or browser, or restore from the first-visit screen.
+## Questions
 
-## Suggested walkthrough
+The 15 branch items are Doc 2's E1–E5, W1–W5 and G1–G5, with the wording, format, tag, Stable/Flexible type and source
+unchanged, except that W5 is tagged `#purpose` (see `SPEC_REVIEW.md`). Each question lists the notes file(s) it writes to,
+as in Doc 2:
 
-1. **Start fresh.** Click *Who am I?*, enter a name, go through the four onboarding steps and give preliminary consent. The three
-   branches appear.
-2. Double-click **Ethics** (or select it and click *Take questionnaire*). Answer the first question. Its `#idealism`
-   tag unlocks *Harm & Consequences* straight away. Answer the family question to unlock *Obligations to Elders &
-   Family*. Skip anything you like, then submit.
-3. Click **Review update** to see the generated note update as a proposal, then **Commit** it.
-4. Edit a line by clicking it; the edited line becomes human-written (hand icon). Add your own note, and lock a line.
-5. Retake the questionnaire with a different answer. The new proposal keeps the locked line unchanged.
-6. Try **Summarise**, **Version history** and **Changes over time** on the file.
-7. Load the **sample profile** and open the floating **!** (potential tensions), **★** (suggested retakes) and **?** (ask the
-   model) controls. In *Personal Agency*, answer “A lot” to the luck question. This unlocks *Meaning & Purpose* through
-   its second parent, and a new potential tension appears once the generated note is committed.
+| Answers | Write to |
+| --- | --- |
+| E1, E2, E3, E5 | `ethics/moral-principles` |
+| E4 | `ethics/family-obligations` |
+| W1 / W2 / W3 | `worldview/personal-agency` / `sources-of-knowledge` / `obligations-to-others` |
+| W4, W5 | `worldview/main` |
+| G1, G2 | `long-term-goals/career` (G2 also writes to `relationships`) |
+| G4 | `long-term-goals/relationships` |
+| G3, G5 | `long-term-goals/main` |
+
+Deeper nodes open from these answers. Items marked *Adapted* are our paraphrases; no instrument is given in full and
+nothing is scored.
+
+| Node | Opened by | Items |
+| --- | --- | --- |
+| Moral Principles | `#idealism`, `#relativism`, `#moral-principles` | EPQ-5 idealism and relativism, paraphrased |
+| Family Relationships | `#family-duty` (E4) **or** `#relationships` (G4…) | informed by the dual filial piety model, plus a limits question |
+| Care vs Ambition | Family Relationships **or** Personal Projects | our own trade-off questions |
+| Personal Agency | `#personal-agency` (W1) | Rotter-style forced-choice pairs |
+| Meaning in Life | W5 **or** Aspirations | MLQ presence and search, paraphrased |
+| Personal Projects | `#career` | Personal Projects Analysis rating dimensions |
+| Aspirations | `#aspirations` (G3) | Aspiration Index likelihood ratings |
 
 ## How it works
 
-### Question graph (`src/data/nodes.ts`, `src/data/questions.ts`, `src/logic/graph.ts`)
-
-- Each **question** has a unique ID (e.g. `ETH-03`), one or more **self-tags**, a node, a **stable/flexible** label and
-  a **source label**: *research-informed*, *adapted item* (e.g. paraphrased from the Ethics Position Questionnaire,
-  Forsyth 1980) or *exploratory* (newly designed).
-- Each **node** has one or more **parent-tags**. A node is available when **any** of its parent-tags is active (OR
-  semantics). Answering a question activates its self-tags.
-- **Edges are derived** rather than hand-written: `P → C` whenever a question in `P` emits a tag in `C`’s parent-tags.
-  The graph is validated as a **DAG** at startup with Kahn’s algorithm, and the app refuses to build a cyclic graph.
-  Nodes are keyed by ID, so a node reachable from several parents is created only once. Examples are *Care vs Ambition
-  Trade-offs* (from family obligations and career), *Obligations to Others* (from worldview and harm) and *Meaning &
-  Purpose* (from agency and goals ↔ values).
-- Unlock state is a pure function of the stored responses. It is never stored separately.
-- **Current progress** is the number of answered questions divided by the questions currently available in the node’s
-  discovered descendant subgraph. **Exploration** counts the nodes and questions discovered through answers. The UI
-  never shows a fixed total or “100% self-understanding”.
-
-### Notes, provenance and versions (`src/logic/notes.ts`, `src/store/store.ts`)
-
-- Every line has an ID, created and updated timestamps, a provenance (✋ human-written, ✏️ automatically generated,
-  🤖 AI-summarised), an optional source assessment-item ID and a lock flag.
-- **Versioning is per file**: one current version plus the five most recent prior versions.
-- Submitting a questionnaire creates a **proposal** (generated update). *Commit* moves the current version into
-  history and makes the proposal current. *Cancel* discards the proposal. Locked lines are never changed by
-  generated updates, summaries or topic resets, and human-written lines are never touched by generated updates.
-- **Reset topic** clears generated and AI lines, keeps human-written and locked lines, and optionally keeps the
-  underlying answers and regenerates notes from them. **Erase topic data** removes the file’s lines, history and the
-  linked answers, after a typed confirmation.
-
-### Maintenance views
-
-- **Potential tensions** (`src/data/tensions.ts`) compare the *current* versions of different files. A tension is
-  shown only when both sides are backed by notes that exist now, in at least two files. Each tension links to the
-  questionnaires that contain its tags.
-- **Changes over time** compares an earlier version of *one* file with its current version.
-- **Suggested retakes** come from four sources: human notes reporting a change, flexible answers older than 120 days,
-  low-confidence answers, and answers that feed an open tension.
-- **Ask the model** runs a staged simulation: dimensions, then `main` files, then topic files, then a generated
-  answer with citations. The answer keeps user-reported statements separate from AI-generated interpretation.
-  Citations open the cited line, and item chips open the assessment item.
+- **Graph:** a node opens when **any** of its parent-tags is active, and answering a question activates its tags.
+  Edges are derived from tags, and the graph is checked for cycles at startup. A node with several parents still
+  appears once. Unlock state is recalculated from your answers, never stored separately.
+- **Notes:** every line records who made it: you (hand icon), generated from an answer (pencil) or a summary (robot). It
+  also has a unique ID, timestamps, the question it came from and a lock. Saving answers produces a **draft** for each
+  file they write to. Nothing changes until you commit it.
+- **Versions:** each file keeps its current version and the five before it, with a compare view and a restore option.
+- **Summarise:** a draft that shortens the generated lines and keeps your own and locked lines word for word. On a
+  `main` file, it summarises that folder's topic files.
+- **Potential tensions:** four fixed rules (in `src/data/tensions.ts`). A rule only shows when both sides are backed
+  by current notes in two different files. Each tension links to the questionnaires behind it.
+- **Changes over time:** compares an earlier version of a single file with its current version.
+- **Suggested retakes:** flexible answers older than 120 days, answers marked unsure, and your own notes that say
+  something changed.
+- **Ask your model:** quotes your notes with citations, kept separate from any interpretation. Interpretations exist
+  only for the sample profile's example questions, and one is dropped if any note it cites is gone.
 
 ## Simplifications
 
-- No real AI. Predefined summaries and *Ask the model* interpretations exist only for the sample profile, tied to the
-  exact file versions they were written for. In every other case the prototype falls back to a rule-based
-  condensation or to quoting the retrieved notes.
-- Potential tensions come from a fixed set of rules over answers and notes, not from semantic analysis.
-- Manual edits made in one browser session are coalesced into a single new file version. Locking or unlocking a line
-  is metadata and does not create a version.
-- “Erase” only deletes this browser’s demo data. Nothing is stored securely or on a server.
-- The questionnaires are short demonstration sets, not validated instruments. Items labelled *adapted* are
-  paraphrases, not the original wording.
-- The interface is desktop-first, designed for widths of 1100 px and up.
+- Manual edits made in one browser session are grouped into a single new file version. Locking a line does not
+  create a version.
+- The question sets are short demonstration sets, not validated instruments.
+- The layout is desktop-first and needs a width of 1100 px or more.

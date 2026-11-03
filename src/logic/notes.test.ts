@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Entry, NoteFile, Response } from '../types';
 import { QUESTION_BY_ID } from '../data/questions';
 import { sampleFiles, SAMPLE_RESPONSES } from '../data/sampleProfile';
-import { commitVersion, diffVersions, generateUpdate, MAX_HISTORY, summarize } from './notes';
+import { commitVersion, diffVersions, generateUpdate, MAX_HISTORY, summarize, summarizeBranch } from './notes';
 import { detectTensions } from './tensions';
 
 const entry = (id: string, text: string, extra: Partial<Entry> = {}): Entry => ({
@@ -42,33 +42,41 @@ describe('file versioning', () => {
 describe('generated updates', () => {
   it('refreshes unlocked lines, protects locked lines and never touches human lines', () => {
     const f = file([
-      entry('a', 'old ETH-01 text', { sourceItemId: 'ETH-01' }),
-      entry('b', 'locked ETH-03 text', { sourceItemId: 'ETH-03', locked: true }),
+      entry('a', 'old E1 text', { sourceItemId: 'E1' }),
+      entry('b', 'locked E2 text', { sourceItemId: 'E2', locked: true }),
       entry('c', 'my own note', { provenance: 'human' }),
     ]);
-    const qs = ['ETH-01', 'ETH-03', 'ETH-04'].map((id) => QUESTION_BY_ID[id]);
-    const p = generateUpdate(f, qs, { 'ETH-01': r(1), 'ETH-03': r(5), 'ETH-04': r(4) }, 'test')!;
+    const qs = ['E1', 'E2', 'MP1'].map((id) => QUESTION_BY_ID[id]);
+    const p = generateUpdate(f, qs, { E1: r(1), E2: r(5), MP1: r(4) }, 'test')!;
     const byId = Object.fromEntries(p.entries.map((e) => [e.id, e]));
-    expect(byId.a.text).toBe(QUESTION_BY_ID['ETH-01'].note(1));
-    expect(byId.b.text).toBe('locked ETH-03 text');
+    expect(byId.a.text).toBe(QUESTION_BY_ID['E1'].note(1));
+    expect(byId.b.text).toBe('locked E2 text');
     expect(p.protectedIds).toEqual(['b']);
     expect(byId.c.text).toBe('my own note');
-    expect(p.entries.some((e) => e.sourceItemId === 'ETH-04' && e.provenance === 'auto')).toBe(true);
+    expect(p.entries.some((e) => e.sourceItemId === 'MP1' && e.provenance === 'auto')).toBe(true);
     // Proposal only: the file itself is untouched until committed.
-    expect(f.current.entries[0].text).toBe('old ETH-01 text');
+    expect(f.current.entries[0].text).toBe('old E1 text');
   });
 });
 
 describe('summarisation', () => {
-  it('keeps every locked line verbatim and in place', () => {
+  it('keeps locked lines and the user’s own lines verbatim', () => {
     const files = sampleFiles();
-    const f = files['long-term-goals/main'];
-    const locked = f.current.entries.filter((e) => e.locked);
-    expect(locked.length).toBeGreaterThan(0);
+    const f = files['ethics/family-obligations'];
+    const kept = f.current.entries.filter((e) => e.locked || e.provenance === 'human');
+    expect(kept.some((e) => e.locked)).toBe(true);
+    expect(kept.some((e) => e.provenance === 'human')).toBe(true);
     const p = summarize(f, undefined)!;
-    for (const l of locked) expect(p.entries.find((e) => e.id === l.id)).toEqual(l);
-    expect(p.entries.filter((e) => !e.locked).every((e) => e.provenance === 'ai')).toBe(true);
+    for (const l of kept) expect(p.entries.find((e) => e.id === l.id)).toEqual(l);
+    expect(p.entries.filter((e) => !kept.includes(e)).every((e) => e.provenance === 'ai')).toBe(true);
     expect(p.entries.length).toBeLessThan(f.current.entries.length);
+  });
+
+  it('summarises a main file from its topic files', () => {
+    const files = sampleFiles();
+    const topics = Object.values(files).filter((f) => f.dir === 'worldview' && f.name !== 'main');
+    const p = summarizeBranch(files['worldview/main'], topics)!;
+    expect(p.entries.filter((e) => e.provenance === 'ai' && e.kind === 'li').length).toBe(3);
   });
 });
 
@@ -84,7 +92,7 @@ describe('potential tensions', () => {
   it('finds cross-file tensions in the sample profile, grounded in current notes', () => {
     const ts = detectTensions(SAMPLE_RESPONSES, sampleFiles());
     expect(ts.map((t) => t.rule.id).sort()).toEqual(
-      ['career-first-vs-family-good-life', 'family-vs-relocation', 'harm-vs-outcomes', 'strangers-obligation-vs-weight'].sort(),
+      ['career-first-vs-family-duty', 'family-vs-project', 'others-vs-community'].sort(),
     );
     for (const t of ts) expect(t.fileIds.length).toBeGreaterThanOrEqual(2);
   });
@@ -93,6 +101,6 @@ describe('potential tensions', () => {
     const files = sampleFiles();
     files['ethics/family-obligations'].current.entries = [];
     const ids = detectTensions(SAMPLE_RESPONSES, files).map((t) => t.rule.id);
-    expect(ids).not.toContain('family-vs-relocation');
+    expect(ids).not.toContain('family-vs-project');
   });
 });

@@ -10,11 +10,11 @@ import { FloatShell } from './FloatingControls';
 
 
 const STEPS = [
-  'Identify relevant dimensions',
-  'Retrieve the relevant main files',
-  'Retrieve relevant topic files',
-  'Generate a response from the retrieved notes',
-  'Attach citations',
+  'Pick the areas the question is about',
+  'Read their main files',
+  'Read the relevant topic files',
+  'Write the answer from those notes',
+  'Add citations',
 ];
 
 interface Turn {
@@ -90,7 +90,7 @@ function TurnView({ turn }: { turn: Turn }) {
         <>
           <div className="answer-block reported">
             <div className="bh">
-              <Hand size={12} /> What your notes say — user-reported
+              <Hand size={12} /> What your notes say
             </div>
             {r.reported.length ? (
               <ul>
@@ -107,7 +107,7 @@ function TurnView({ turn }: { turn: Turn }) {
           </div>
           <div className="answer-block interp">
             <div className="bh">
-              <Bot size={12} /> Interpretation — AI-generated{!r.predefined && ' (rule-based)'}
+              <Bot size={12} /> Interpretation{r.predefined ? ' — pre-written' : ''}
             </div>
             {r.interpretation.map((p, i) => (
               <p key={i}>
@@ -119,7 +119,7 @@ function TurnView({ turn }: { turn: Turn }) {
           {r.missingSources > 0 && (
             <div className="disclaimer">
               <AlertTriangle size={13} style={{ flex: 'none', marginTop: 1 }} />
-              {r.missingSources} expected source{r.missingSources > 1 ? 's are' : ' is'} no longer in your notes and {r.missingSources > 1 ? 'were' : 'was'} left out.
+              {r.missingSources} note{r.missingSources > 1 ? 's this answer used are' : ' this answer used is'} no longer in your files, so the parts based on {r.missingSources > 1 ? 'them' : 'it'} were left out.
             </div>
           )}
           <div>
@@ -200,8 +200,8 @@ export function AskPanel() {
   return (
     <FloatShell
       icon="?"
-      title="Ask the model"
-      sub="Simulated — answers are built from your current notes"
+      title="Ask your model"
+      sub="No AI in this prototype: answers are pre-written for the sample, or quote your notes"
       foot={
         <>
           <div className="ask-input">
@@ -224,8 +224,7 @@ export function AskPanel() {
           </div>
           <div className="disclaimer" style={{ marginTop: 8 }}>
             <Bot size={13} style={{ flex: 'none', marginTop: 1 }} />
-            Interpretations are generated and may be incorrect or miss context. Check them against the cited notes; they are
-            not advice or a diagnosis.
+            Interpretations can be wrong. Check them against the cited notes. They are not advice or a diagnosis.
           </div>
         </>
       }
@@ -233,8 +232,7 @@ export function AskPanel() {
       {turns.length === 0 && (
         <>
           <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>
-            The model first finds which dimensions your question touches, reads those <span className="mono">main</span>{' '}
-            files, then the relevant topic files, and answers with citations. Try an example:
+            Answers come only from your notes, with your own words kept separate from interpretation. Try:
           </p>
           <div className="examples">
             {EXAMPLES.map((q) => (

@@ -4,6 +4,8 @@ export const ROOT_ID = 'root';
 /** Tag activated by completing onboarding + preliminary consent. */
 export const ONBOARDED_TAG = 'onboarded';
 
+// Structure follows the prototype writeup (Doc 2): three branches under the root,
+// and a Family Relationships node reached from both Ethics (E4) and Goals (G4).
 export const NODES: GraphNode[] = [
   {
     id: 'root',
@@ -11,7 +13,7 @@ export const NODES: GraphNode[] = [
     tag: 'self',
     branch: 'root',
     description:
-      'The starting point. Explains what this system does, what it stores, and asks for preliminary consent before anything is recorded.',
+      'Explains what is stored and how, and asks for consent before any question is shown.',
     parentTags: [],
   },
   // ── Branches ───────────────────────────────────────────────
@@ -21,7 +23,7 @@ export const NODES: GraphNode[] = [
     tag: 'ethics',
     branch: 'ethics',
     description:
-      'How you weigh harm and outcomes, and whether you think moral principles hold universally or depend on circumstances (idealism and relativism).',
+      'How much you weigh avoiding harm, and whether you think moral rules hold everywhere or depend on the situation.',
     parentTags: ['onboarded'],
     fileId: 'ethics/main',
   },
@@ -31,7 +33,7 @@ export const NODES: GraphNode[] = [
     tag: 'worldview',
     branch: 'worldview',
     description:
-      'Exploratory questions about personal agency, where your knowledge comes from, and what you owe other people. Not a validated worldview scale.',
+      'What you believe about how life works: how much of it is up to you, how you decide what is true, and what you owe people outside your circle.',
     parentTags: ['onboarded'],
     fileId: 'worldview/main',
   },
@@ -41,121 +43,81 @@ export const NODES: GraphNode[] = [
     tag: 'goals',
     branch: 'goals',
     description:
-      'A long-term goal in your own words, how important it is, why it matters, and what pursuing it would ask of you.',
+      'What you are working on, what you hope for, and how much each matters to you. Most of these answers are expected to change.',
     parentTags: ['onboarded'],
     fileId: 'long-term-goals/main',
   },
-  // ── Ethics descendants ─────────────────────────────────────
+  // ── Ethics ─────────────────────────────────────────────────
   {
-    id: 'eth-harm',
-    name: 'Harm & Consequences',
-    tag: 'harm-concern',
+    id: 'moral',
+    name: 'Moral Principles',
+    tag: 'moral-principles',
     branch: 'ethics',
     description:
-      'Explores how much outcomes matter to you compared with rules and intentions, and whether you feel responsible for harms you fail to prevent.',
-    parentTags: ['idealism'],
+      'More statements about avoiding harm and about whether moral rules are universal, paraphrased from the Ethics Position Questionnaire.',
+    parentTags: ['idealism', 'relativism', 'moral-principles'],
     fileId: 'ethics/moral-principles',
   },
   {
-    id: 'eth-universal',
-    name: 'Universal vs Contextual Principles',
-    tag: 'relativism',
-    branch: 'ethics',
-    description:
-      'Explores whether you think the same moral rules should bind everyone, or whether context and culture change what is right.',
-    parentTags: ['relativism'],
-    fileId: 'ethics/moral-principles',
-  },
-  {
-    id: 'eth-family',
-    name: 'Obligations to Elders & Family',
+    id: 'family',
+    name: 'Family Relationships',
     tag: 'family-duty',
     branch: 'ethics',
     description:
-      'A deeper look at what you believe you owe parents, grandparents and family — and where you think those obligations reach their limits.',
-    parentTags: ['family-duty'],
+      'What you feel you owe parents and family, and where that stops. Opened from both Ethics and Long-term Goals.',
+    parentTags: ['family-duty', 'relationships'],
     fileId: 'ethics/family-obligations',
   },
   {
-    id: 'eth-tradeoffs',
-    name: 'Care vs Ambition Trade-offs',
+    id: 'tradeoffs',
+    name: 'Care vs Ambition',
     tag: 'tradeoff',
     branch: 'ethics',
     description:
-      'Reached from both family obligations and career direction. Explores how you would act when caring for family and pursuing an opportunity pull apart.',
-    parentTags: ['eldercare-limits', 'relocation'],
+      'What you would do when family and an opportunity pull in different directions. Opened from Family Relationships and from Personal Projects.',
+    parentTags: ['filial-limits', 'project-cost'],
     fileId: 'ethics/family-obligations',
   },
-  // ── Worldview descendants ──────────────────────────────────
+  // ── Worldview ──────────────────────────────────────────────
   {
-    id: 'wv-agency',
+    id: 'agency',
     name: 'Personal Agency',
-    tag: 'agency',
+    tag: 'personal-agency',
     branch: 'worldview',
     description:
-      'How much of your life you see as shaped by your own choices versus luck, circumstance and other people.',
-    parentTags: ['agency'],
+      'Pairs of statements about control over your life, in the forced-choice style of Rotter’s locus-of-control scale.',
+    parentTags: ['personal-agency'],
     fileId: 'worldview/personal-agency',
   },
   {
-    id: 'wv-knowledge',
-    name: 'Sources of Knowledge',
-    tag: 'epistemic',
+    id: 'meaning',
+    name: 'Meaning in Life',
+    tag: 'purpose',
     branch: 'worldview',
     description:
-      'Which sources you trust when forming beliefs, how you handle uncertainty, and how you respond to evidence against your views.',
-    parentTags: ['epistemic'],
-    fileId: 'worldview/sources-of-knowledge',
-  },
-  {
-    id: 'wv-others',
-    name: 'Obligations to Others',
-    tag: 'others-obligation',
-    branch: 'worldview',
-    description:
-      'Reached from worldview and from harm sensitivity. Explores whose wellbeing you think should count, and how much you owe strangers.',
-    parentTags: ['others-obligation', 'harm-sensitivity'],
-    fileId: 'worldview/obligations-to-others',
-  },
-  {
-    id: 'wv-meaning',
-    name: 'Meaning & Purpose',
-    tag: 'meaning',
-    branch: 'worldview',
-    description:
-      'Reached from agency and from goals-values alignment. What would make your life feel well-used, and whether your daily work connects to it.',
-    parentTags: ['meaning'],
+      'Whether your life feels meaningful now, and whether you are looking for more meaning. Opened from Worldview and from Aspirations.',
+    parentTags: ['purpose', 'aspiration-tradeoff'],
     fileId: 'worldview/main',
   },
-  // ── Goals descendants ──────────────────────────────────────
+  // ── Long-term goals ────────────────────────────────────────
   {
-    id: 'goal-career',
-    name: 'Career Direction',
-    tag: 'career-goal',
+    id: 'projects',
+    name: 'Personal Projects',
+    tag: 'career',
     branch: 'goals',
     description:
-      'The work you want to be doing in ten years, what you want from it, and what you would be willing to change to get there.',
-    parentTags: ['career-goal'],
+      'A closer look at the project you described: how it feels, how it is going, and what it costs you.',
+    parentTags: ['career'],
     fileId: 'long-term-goals/career',
   },
   {
-    id: 'goal-rel',
-    name: 'Relationships & Home',
-    tag: 'relational-goal',
+    id: 'aspirations',
+    name: 'Aspirations',
+    tag: 'aspirations',
     branch: 'goals',
     description:
-      'Reached from goals and from family obligations. What you want your relationships with family to look like, and where you want to live.',
-    parentTags: ['relational-goal', 'eldercare'],
-    fileId: 'long-term-goals/relationships',
-  },
-  {
-    id: 'goal-values',
-    name: 'Goals ↔ Values',
-    tag: 'value-alignment',
-    branch: 'goals',
-    description:
-      'A deeper question: which of your values your goal expresses, and where it pulls against something else you care about.',
-    parentTags: ['goal-why'],
+      'How likely the things you rated as important are to happen, and which you would give up first.',
+    parentTags: ['aspirations'],
     fileId: 'long-term-goals/main',
   },
 ];

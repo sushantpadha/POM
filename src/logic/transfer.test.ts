@@ -30,7 +30,7 @@ describe('export / import', () => {
     const newer = { ...buildExport(data), version: 99 };
     expect(parseExport(JSON.stringify(newer))).toMatchObject({ ok: false });
     const bad = buildExport(data);
-    bad.data.responses['NOPE-1'] = bad.data.responses['ETH-01'];
+    bad.data.responses['NOPE-1'] = bad.data.responses['E1'];
     expect(parseExport(JSON.stringify(bad))).toMatchObject({ ok: false, error: expect.stringContaining('NOPE-1') });
     const missing = buildExport(data) as unknown as { data: { files: Record<string, unknown> } };
     delete missing.data.files['ethics/main'];

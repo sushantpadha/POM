@@ -61,7 +61,7 @@ export function generateUpdate(
         entries.unshift({
           id: uid('e'),
           kind: 'h',
-          text: 'From assessments',
+          text: 'From your answers',
           createdAt: now,
           updatedAt: now,
           provenance: 'auto',
@@ -93,8 +93,8 @@ export function generateUpdate(
 }
 
 /**
- * Simulated summarisation. Locked lines are kept verbatim and in place; every
- * other line is replaced by a shorter, predefined (or rule-based) AI summary.
+ * Simulated summarisation. Only generated lines (pencil and robot) are condensed;
+ * the user's own lines and locked lines are kept verbatim and in place.
  */
 export function summarize(
   file: NoteFile,
@@ -102,49 +102,60 @@ export function summarize(
   now = nowIso(),
 ): Proposal | null {
   const current = file.current.entries;
-  const unlocked = current.filter((e) => !e.locked);
-  if (unlocked.length < 2) return null;
+  const keep = (e: Entry) => e.locked || e.provenance === 'human';
+  const generated = current.filter((e) => !keep(e));
+  if (generated.length < 2) return null;
+  return buildSummary(file, predefined?.length ? predefined : fallbackSummary(generated), now);
+}
 
-  const lines = predefined?.length ? predefined : fallbackSummary(unlocked);
-  const summaryEntries: Entry[] = lines.map((text, i) => ({
-    id: uid('e'),
-    kind: i === 0 && !predefined ? 'h' : 'li',
-    text,
-    createdAt: now,
-    updatedAt: now,
-    provenance: 'ai',
-    locked: false,
-  }));
-  if (predefined?.length) {
-    summaryEntries.unshift({
-      id: uid('e'),
-      kind: 'h',
-      text: 'Summary',
-      createdAt: now,
-      updatedAt: now,
-      provenance: 'ai',
-      locked: false,
-    });
-  }
+/**
+ * A branch's main file summarises its topic files: one short line per topic
+ * file that has notes. Rule-based; no AI is involved.
+ */
+export function summarizeBranch(main: NoteFile, topics: NoteFile[], now = nowIso()): Proposal | null {
+  const lines = topics
+    .map((t) => {
+      const body = t.current.entries.filter((e) => e.kind !== 'h');
+      if (!body.length) return null;
+      const first = shorten(plain(body[0].text));
+      return `${t.title}: ${first}${body.length > 1 ? ` (+${body.length - 1} more in [[${t.id}]])` : ''}`;
+    })
+    .filter((x): x is string => !!x);
+  if (!lines.length) return null;
+  return buildSummary(main, lines, now);
+}
 
-  // Keep locked lines exactly where they were; place the summary where the first unlocked line was.
+function buildSummary(file: NoteFile, lines: string[], now: string): Proposal {
+  const current = file.current.entries;
+  const keep = (e: Entry) => e.locked || e.provenance === 'human';
+  const summaryEntries: Entry[] = [
+    { id: uid('e'), kind: 'h', text: 'Summary', createdAt: now, updatedAt: now, provenance: 'ai', locked: false },
+    ...lines.map((text): Entry => ({ id: uid('e'), kind: 'li', text, createdAt: now, updatedAt: now, provenance: 'ai', locked: false })),
+  ];
+  // The summary goes where the first replaced line was; kept lines stay where they are.
   const entries: Entry[] = [];
   let inserted = false;
   for (const e of current) {
-    if (e.locked) entries.push(e);
+    if (keep(e)) entries.push(e);
     else if (!inserted) {
       entries.push(...summaryEntries);
       inserted = true;
     }
   }
+  if (!inserted) entries.unshift(...summaryEntries);
   return {
     versionId: uid('v'),
     createdAt: now,
-    reason: 'AI summary (simulated)',
+    reason: 'Summary',
     entries,
     kind: 'summary',
-    protectedIds: current.filter((e) => e.locked).map((e) => e.id),
+    protectedIds: current.filter(keep).map((e) => e.id),
   };
+}
+
+function shorten(s: string): string {
+  const first = s.split(/(?<=[.!?”])\s/)[0];
+  return first.length > 110 ? `${first.slice(0, 107).trimEnd()}…` : first;
 }
 
 function plain(text: string): string {
@@ -155,15 +166,9 @@ function plain(text: string): string {
 }
 
 function fallbackSummary(entries: Entry[]): string[] {
-  const body = entries.filter((e) => e.kind !== 'h');
-  const sentences = body.map((e) => {
-    const s = plain(e.text).split(/(?<=[.!?”])\s/)[0];
-    return s.length > 110 ? `${s.slice(0, 107).trimEnd()}…` : s;
-  });
-  const out = ['Condensed notes'];
-  for (let i = 0; i < sentences.length; i += 2) {
-    out.push(sentences.slice(i, i + 2).join(' '));
-  }
+  const body = entries.filter((e) => e.kind !== 'h').map((e) => shorten(plain(e.text)));
+  const out: string[] = [];
+  for (let i = 0; i < body.length; i += 2) out.push(body.slice(i, i + 2).join(' '));
   return out;
 }
 

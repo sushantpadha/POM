@@ -1,7 +1,7 @@
 /**
- * Predefined "Ask the model" responses. Citations point at assessment items
- * (resolved to whichever current note line carries that item) or at specific
- * human-written lines. Statements are only shown when their sources still exist.
+ * Pre-written "Ask about your notes" answers for the sample profile. Citations
+ * point at assessment items (resolved to the current note line for that item) or
+ * at specific lines the user wrote. A reading is dropped if any note it cites is gone.
  */
 export type Ref = { qid: string } | { fileId: string; entryId: string };
 
@@ -18,7 +18,7 @@ export interface AskSpec {
   sampleOnly?: boolean;
   dimensions: ('ethics' | 'worldview' | 'long-term-goals')[];
   topicFiles: string[];
-  /** User-reported statements to retrieve (human-written or generated from answers). */
+  /** The user's own statements to quote back. */
   reported: Ref[];
   interpretation: Interpretation[];
 }
@@ -26,88 +26,74 @@ export interface AskSpec {
 export const ASK_SPECS: AskSpec[] = [
   {
     id: 'goals-ethics',
-    question: 'How do my current long-term goals relate to my ethical priorities?',
+    question: 'How do my long-term goals relate to my ethical priorities?',
     match: /goal.*(ethic|moral|value|priorit)|(ethic|moral).*goal/i,
     dimensions: ['long-term-goals', 'ethics'],
-    topicFiles: ['long-term-goals/career', 'ethics/family-obligations', 'ethics/moral-principles'],
-    reported: [
-      { qid: 'GOL-01' },
-      { qid: 'GOL-02' },
-      { qid: 'ETH-01' },
-      { qid: 'HRM-02' },
-      { qid: 'GOL-03' },
-      { qid: 'FAM-02' },
-      { qid: 'FAM-03' },
-    ],
+    topicFiles: ['long-term-goals/career', 'ethics/moral-principles', 'ethics/family-obligations'],
+    reported: [{ qid: 'G1' }, { qid: 'MP1' }, { qid: 'E4' }, { qid: 'PP2' }, { qid: 'FR3' }],
     interpretation: [
       {
-        text: 'Your main goal and your ethics appear to share a root in preventing harm: you describe early-detection work as helping people directly, and you treat harm to others as close to an absolute limit — including harms you fail to prevent.',
-        refs: [{ qid: 'GOL-02' }, { qid: 'ETH-01' }, { qid: 'HRM-02' }],
+        text: 'Your project and your ethics may share a concern with preventing harm: you are working on early detection, and you treat risking harm to others as close to unacceptable.',
+        refs: [{ qid: 'G1' }, { qid: 'MP1' }],
       },
       {
-        text: 'The clearest friction looks practical rather than moral: the goal now likely involves relocation, while you define your obligation to elders as being nearby and available.',
-        refs: [{ qid: 'GOL-03' }, { qid: 'FAM-02' }],
+        text: 'The friction looks like time rather than principle: you rate what you owe your elders at 8/10, and say the project already asks you to give up a lot of family time.',
+        refs: [{ qid: 'E4' }, { qid: 'PP2' }],
       },
       {
-        text: 'The limit you named yourself — not being absent for something that cannot be repeated — could serve as a concrete test when weighing specific options.',
-        refs: [{ qid: 'FAM-03' }],
+        text: 'The limit you named — not missing moments that can’t be repeated — could be a concrete test for specific options.',
+        refs: [{ qid: 'FR3' }],
       },
     ],
   },
   {
     id: 'zurich',
-    question: 'What should I reflect on before deciding about the Zurich offer?',
+    question: 'What should I think about before deciding on the Zurich offer?',
     match: /zurich|offer|decid|move abroad|relocat/i,
     sampleOnly: true,
-    dimensions: ['long-term-goals', 'ethics', 'worldview'],
-    topicFiles: ['long-term-goals/career', 'ethics/family-obligations', 'long-term-goals/relationships', 'worldview/personal-agency'],
+    dimensions: ['long-term-goals', 'ethics'],
+    topicFiles: ['long-term-goals/career', 'ethics/family-obligations', 'long-term-goals/relationships'],
     reported: [
-      { fileId: 'long-term-goals/career', entryId: 'ca5' },
+      { fileId: 'long-term-goals/career', entryId: 'ca6' },
       { fileId: 'ethics/family-obligations', entryId: 'fo7' },
-      { qid: 'CAR-02' },
-      { qid: 'FAM-03' },
-      { fileId: 'long-term-goals/relationships', entryId: 'rl1' },
-      { fileId: 'long-term-goals/main', entryId: 'gm7' },
+      { qid: 'PP2' },
+      { fileId: 'long-term-goals/relationships', entryId: 'rl3' },
+      { fileId: 'long-term-goals/main', entryId: 'gm5' },
     ],
     interpretation: [
       {
-        text: 'Two dated commitments sit side by side in your notes: the offer deadline in December and being in Pune for at least a month around your mother’s surgery in spring 2027. It may help to check whether these actually overlap before treating them as a conflict.',
-        refs: [{ fileId: 'long-term-goals/career', entryId: 'ca5' }, { fileId: 'ethics/family-obligations', entryId: 'fo7' }],
+        text: 'Two dated commitments sit side by side: the offer deadline in December, and being in Pune for a month around the surgery in spring 2027. It may help to check whether they actually clash.',
+        refs: [{ fileId: 'long-term-goals/career', entryId: 'ca6' }, { fileId: 'ethics/family-obligations', entryId: 'fo7' }],
       },
       {
-        text: 'You said you would accept a significant move, but rated your confidence in that answer as low. The newly unlocked “Care vs Ambition Trade-offs” questionnaire asks about exactly this scenario.',
-        refs: [{ qid: 'CAR-02' }],
+        text: 'You rated the family time your project costs at 7/10, but with low confidence. The Care vs Ambition questions ask about this situation directly.',
+        refs: [{ qid: 'PP2' }],
       },
       {
-        text: 'You have already planned to talk with your parents and retake your goals afterwards — that conversation may change several of the notes above.',
-        refs: [{ fileId: 'long-term-goals/main', entryId: 'gm7' }],
+        text: 'You already planned to talk with your parents and retake your goals afterwards; that conversation may change several of these notes.',
+        refs: [{ fileId: 'long-term-goals/main', entryId: 'gm5' }],
       },
     ],
   },
   {
-    id: 'worldview-change',
-    question: 'How has my view of personal agency changed since I started?',
+    id: 'agency-change',
+    question: 'How has my view of personal agency changed?',
     match: /agency|changed|change.*(view|belief|worldview)|effort|luck/i,
     sampleOnly: true,
     dimensions: ['worldview'],
     topicFiles: ['worldview/personal-agency'],
-    reported: [
-      { qid: 'WV-01' },
-      { qid: 'WV-04' },
-      { qid: 'AGY-01' },
-      { fileId: 'worldview/personal-agency', entryId: 'pa2' },
-    ],
+    reported: [{ qid: 'W1' }, { qid: 'W4' }, { fileId: 'worldview/personal-agency', entryId: 'pa3' }],
     interpretation: [
       {
-        text: 'Your agreement that life is mostly shaped by your own effort moved from 5 to 4 between March and August, and in the same retake you described no longer believing hard work is enough.',
-        refs: [{ qid: 'WV-01' }, { qid: 'WV-04' }],
+        text: 'Your agreement that your choices matter more than luck went from 5 to 4 between March and August, the same retake in which you wrote that hard work is not enough.',
+        refs: [{ qid: 'W1' }, { qid: 'W4' }],
       },
       {
-        text: 'At the same time, when plans fail you still look first at your own part. This may be less a contradiction than a habit of self-scrutiny that has outlasted the belief behind it.',
-        refs: [{ qid: 'AGY-01' }, { fileId: 'worldview/personal-agency', entryId: 'pa2' }],
+        text: 'You still look at your own part first when things go wrong. That may be a habit that has outlasted the belief, rather than a contradiction.',
+        refs: [{ fileId: 'worldview/personal-agency', entryId: 'pa3' }],
       },
     ],
   },
 ];
 
-export const LOW_CONFIDENCE_QUESTION = 'Which of my notes rest on low-confidence answers?';
+export const LOW_CONFIDENCE_QUESTION = 'Which of my notes come from answers I wasn’t sure about?';

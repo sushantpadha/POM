@@ -20,7 +20,7 @@ import {
   SAMPLE_SEEN,
 } from '../data/sampleProfile';
 import { activeTags, availableIds } from '../logic/graph';
-import { commitVersion, generateUpdate, nowIso, summarize, uid } from '../logic/notes';
+import { commitVersion, generateUpdate, nowIso, summarize, summarizeBranch, uid } from '../logic/notes';
 import { MODEL, nodesForFile, questionsForFile } from './model';
 import { buildExport, type ExportFile, type PortableData } from '../logic/transfer';
 
@@ -64,7 +64,7 @@ interface Actions {
   setResponse: (qid: string, value: AnswerValue, confidence?: number) => string[];
   setConfidence: (qid: string, confidence: number) => void;
   clearResponse: (qid: string) => void;
-  submitQuestionnaire: (nodeId: string) => { proposalFileId?: string };
+  submitQuestionnaire: (nodeId: string) => { proposalFileIds: string[] };
   addEntry: (fileId: string, afterId: string | null, text: string, kind?: EntryKind) => string;
   updateEntry: (fileId: string, entryId: string, text: string, kind?: EntryKind) => void;
   deleteEntry: (fileId: string, entryId: string) => void;
@@ -145,6 +145,13 @@ const initialUi = (): Omit<Ui, 'toasts' | 'manualVersions'> => ({
   graphResetCounter: 0,
 });
 
+/** Forget completion dates for nodes that no longer have any answers. */
+function clearEmptyProgress(s: Data, nodeIds: string[]) {
+  for (const id of nodeIds) {
+    if (!MODEL.questionsByNode[id].some((q) => s.responses[q.id])) delete s.progress[id];
+  }
+}
+
 function sameTab(a: Tab, b: Tab): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === 'file' && b.kind === 'file') return a.fileId === b.fileId;
@@ -210,7 +217,7 @@ export const useStore = create<Store>()(
             s.tabs = s.tabs.filter((t) => t.kind !== 'onboarding');
             s.activeTab = 0;
             s.selectedNodeId = 'root';
-            pushToast(s, { text: `Welcome, ${s.userName}. Three branches revealed: Ethics, Worldview / Beliefs, Long-term Goals.`, tone: 'unlock' });
+            pushToast(s, { text: `Welcome, ${s.userName}. Ethics, Worldview / Beliefs and Long-term Goals are now open.`, tone: 'unlock' });
           }),
 
         setUserName: (name) =>
@@ -280,7 +287,7 @@ export const useStore = create<Store>()(
           }),
 
         submitQuestionnaire: (nodeId) => {
-          let proposalFileId: string | undefined;
+          const proposalFileIds: string[] = [];
           set((s) => {
             const now = nowIso();
             s.progress[nodeId] ??= { submissions: [] };
@@ -288,22 +295,24 @@ export const useStore = create<Store>()(
             p.completedAt = now;
             p.submissions.push(now);
             const node = NODE_BY_ID[nodeId];
-            if (node.fileId) {
-              const file = s.files[node.fileId];
+            const qs = MODEL.questionsByNode[nodeId];
+            // Each answer updates the file(s) its question names, so one submission can touch several files.
+            const fileIds = [...new Set(qs.flatMap((q) => q.fileIds))];
+            for (const fileId of fileIds) {
               const proposal = generateUpdate(
-                file,
-                MODEL.questionsByNode[nodeId],
+                s.files[fileId],
+                qs.filter((q) => q.fileIds.includes(fileId)),
                 s.responses,
-                `Generated from ${node.name} ${p.submissions.length > 1 ? 'retake' : 'assessment'}`,
+                `Answers in ${node.name}${p.submissions.length > 1 ? ' (retake)' : ''}`,
                 now,
               );
               if (proposal) {
-                file.proposal = proposal;
-                proposalFileId = node.fileId;
+                s.files[fileId].proposal = proposal;
+                proposalFileIds.push(fileId);
               }
             }
           });
-          return { proposalFileId };
+          return { proposalFileIds };
         },
 
         addEntry: (fileId, afterId, text, kind = 'li') => {
@@ -354,7 +363,7 @@ export const useStore = create<Store>()(
             const { kind: _k, protectedIds: _p, ...version } = file.proposal;
             s.files[fileId] = commitVersion(file, version);
             delete s.manualVersions[fileId];
-            pushToast(s, { text: `Committed new version of ${fileId}. Previous version moved to history.` });
+            pushToast(s, { text: `Saved a new version of ${fileId}.` });
           }),
 
         cancelProposal: (fileId) =>
@@ -363,12 +372,16 @@ export const useStore = create<Store>()(
           }),
 
         proposeSummary: (fileId) => {
-          const file = get().files[fileId];
-          const predefined = PREDEFINED_SUMMARIES[fileId];
-          const proposal = summarize(
-            file,
-            predefined?.forVersion === file.current.versionId ? predefined.lines : undefined,
-          );
+          const files = get().files;
+          const file = files[fileId];
+          let proposal;
+          if (file.name === 'main') {
+            const topics = Object.values(files).filter((f) => f.dir === file.dir && f.name !== 'main');
+            proposal = summarizeBranch(file, topics);
+          } else {
+            const predefined = PREDEFINED_SUMMARIES[fileId];
+            proposal = summarize(file, predefined?.forVersion === file.current.versionId ? predefined.lines : undefined);
+          }
           if (!proposal) return false;
           set((s) => {
             s.files[fileId].proposal = proposal;
@@ -399,11 +412,10 @@ export const useStore = create<Store>()(
             const file = s.files[fileId];
             const now = nowIso();
             const kept = file.current.entries.filter((e) => e.locked || e.provenance === 'human');
-            const nodeIds = nodesForFile(fileId);
             const qs = questionsForFile(fileId);
             if (!retainResponses) {
               qs.forEach((q) => delete s.responses[q.id]);
-              nodeIds.forEach((id) => delete s.progress[id]);
+              clearEmptyProgress(s, nodesForFile(fileId));
             }
             let next = { versionId: uid('v'), createdAt: now, reason: 'Topic reset', entries: kept };
             if (retainResponses) {
@@ -420,7 +432,7 @@ export const useStore = create<Store>()(
           set((s) => {
             const file = s.files[fileId];
             questionsForFile(fileId).forEach((q) => delete s.responses[q.id]);
-            nodesForFile(fileId).forEach((id) => delete s.progress[id]);
+            clearEmptyProgress(s, nodesForFile(fileId));
             s.files[fileId] = {
               ...file,
               history: [],
@@ -530,7 +542,9 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'pom-prototype-v1',
-      version: 1,
+      // v2 replaced the question set with the writeup's items; older saved state can't be mapped onto it.
+      version: 2,
+      migrate: () => ({}) as Partial<Store>,
       partialize: (s) => ({
         profile: s.profile,
         userName: s.userName,

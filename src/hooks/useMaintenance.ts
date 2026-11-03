@@ -14,7 +14,7 @@ export function useMaintenance() {
   return useMemo(() => {
     const tensions = detectTensions(responses, files);
     const openTensions = tensions.filter((t) => !dismissed.includes(t.rule.id));
-    const all = suggestRetakes(responses, progress, files, openTensions);
+    const all = suggestRetakes(responses, progress, files);
     const now = Date.now();
     const isDeferred = (id: string) => !!deferred[id] && new Date(deferred[id]).getTime() > now;
     return {

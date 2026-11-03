@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Database, Download, Network, Sprout, Upload, UserRound, X } from 'lucide-react';
+import { Database, Download, Upload, X } from 'lucide-react';
 import { downloadExport } from './transfer';
 import { useStore, type Toast } from '../../store/store';
 import { fmtDateTime } from '../../logic/format';
@@ -12,33 +12,28 @@ export function DemoChooser() {
       <div className="dialog chooser" role="dialog" aria-modal="true" aria-labelledby="chooser-title">
         <div className="dialog-head">
           <h2 id="chooser-title">
-            <Network size={16} /> Personal Operating Model — prototype
+            Personal Operating Model
           </h2>
         </div>
         <div className="dialog-body">
           <p>
-            A research-informed self-assessment prototype. All AI behaviour is simulated with predefined outputs, and all data
-            stays in this browser. Choose how to explore it — you can switch later from the profile menu.
+            A prototype for putting your ethics, worldview and long-term goals into words. It uses no AI service, and
+            everything stays in this browser. You can switch later from the menu at the top right.
           </p>
           <div className="chooser-grid">
             <button className="chooser-card" onClick={() => chooseProfile('fresh')}>
-              <Sprout size={18} style={{ color: 'var(--human)' }} />
               <h3>Start fresh</h3>
-              <p>Begin at “Who am I?”: onboarding and consent, then answer questions and watch the map and notes grow.</p>
+              <p>Begin with consent, then answer questions and build your own notes.</p>
             </button>
             <button className="chooser-card" onClick={() => chooseProfile('sample')}>
-              <UserRound size={18} style={{ color: 'var(--accent)' }} />
-              <h3>Explore a sample profile</h3>
-              <p>
-                Priya, an MSc student seven months in, weighing a PhD offer abroad against family commitments. Includes
-                history, tensions and retake suggestions.
-              </p>
+              <h3>Look at a sample</h3>
+              <p>A fictional student, seven months in, weighing a PhD offer abroad against family commitments.</p>
             </button>
           </div>
         </div>
         <div className="dialog-foot" style={{ justifyContent: 'flex-start' }}>
           <button className="btn ghost" onClick={() => setDialog({ kind: 'import' })}>
-            <Upload size={13} /> Restore from an export file…
+            <Upload size={13} /> Import an export file…
           </button>
         </div>
       </div>
@@ -54,46 +49,40 @@ export function AboutDialog() {
       <div className="dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h2>
-            <Database size={16} /> Data, storage & consent
+            <Database size={16} /> Your data
           </h2>
         </div>
         <div className="dialog-body">
           <ul>
             <li>
-              <b>Stored:</b> questionnaire answers (with confidence and dates), notes, line metadata and up to five earlier
-              versions per notes file.
+              <b>Stored:</b> your answers (with dates and how sure you were), your notes, and up to five earlier versions of
+              each notes file.
             </li>
             <li>
-              <b>Where:</b> this browser’s <span className="mono">localStorage</span> only. No server, no account, no
-              encryption. This is a prototype; it does not provide secure storage.
+              <b>Where:</b> only in this browser. No server, no account, no encryption.
             </li>
             <li>
-              <b>AI:</b> summaries, potential tensions and “Ask the model” answers are simulated from predefined outputs and
-              simple rules. Real AI interpretations could be wrong — they are always labelled.
+              <b>AI:</b> none is used. Summaries, tensions and “Ask your model” are pre-written or rule-based stand-ins.
             </li>
             <li>
-              <b>Not clinical:</b> nothing here is a diagnosis or a validated psychological measurement.
+              <b>Not clinical:</b> no diagnosis, score or validated measurement.
             </li>
             <li>
-              <b>Consent:</b>{' '}
-              {onboardedAt ? `preliminary consent given ${fmtDateTime(onboardedAt)}.` : 'not yet given — start at “Who am I?”.'}{' '}
-              It covers local storage and note generation only.
+              <b>Consent:</b> {onboardedAt ? `given ${fmtDateTime(onboardedAt)}` : 'not given yet'}. It covers local storage
+              and making notes only.
             </li>
             <li>
-              <b>Control:</b> use a file’s menu to reset a topic or erase its notes, answers and history.
-            </li>
-            <li>
-              <b>Backup &amp; moving devices:</b> export everything to a JSON file and import it in another browser. The
-              file is not encrypted — keep it private.
+              <b>Control:</b> reset or erase any topic from its file menu. Export makes an unencrypted file — keep it
+              private.
             </li>
           </ul>
         </div>
         <div className="dialog-foot">
           <button className="btn" onClick={downloadExport}>
-            <Download size={13} /> Export data
+            <Download size={13} /> Export
           </button>
           <button className="btn" onClick={() => setDialog({ kind: 'import' })}>
-            <Upload size={13} /> Import data…
+            <Upload size={13} /> Import…
           </button>
           <span className="grow" />
           <button className="btn" onClick={() => setDialog(null)}>Close</button>

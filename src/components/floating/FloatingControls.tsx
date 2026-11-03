@@ -16,7 +16,7 @@ export function FloatingControls() {
   return (
     <>
       <div className="fab-stack">
-        <button className={`fab ${floating === 'ask' ? 'on' : ''}`} title="Ask the model" aria-label="Ask the model" onClick={() => toggle('ask')}>
+        <button className={`fab ${floating === 'ask' ? 'on' : ''}`} title="Ask your model" aria-label="Ask your model" onClick={() => toggle('ask')}>
           ?
         </button>
         <button className={`fab ${floating === 'retakes' ? 'on' : ''}`} title="Suggested retakes" aria-label="Suggested retakes" onClick={() => toggle('retakes')}>

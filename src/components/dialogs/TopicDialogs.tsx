@@ -32,7 +32,7 @@ function ResetVsErase({ highlight }: { highlight: 'reset' | 'erase' }) {
   );
 }
 
-/** Nodes that would become undiscovered again if these answers were removed. */
+/** Nodes that would close again if these answers were removed. */
 function relockedBy(qids: string[]): string[] {
   const s = useStore.getState();
   const before = availableIds(MODEL, activeTags(MODEL, s.responses, !!s.onboardedAt));
@@ -74,7 +74,7 @@ export function ResetDialog({ fileId }: { fileId: string }) {
           {relocked.length > 0 && (
             <div className="callout warn">
               <span>
-                Without these answers, {relocked.map((id) => NODE_BY_ID[id].name).join(', ')} will become undiscovered again.
+                Without these answers, {relocked.map((id) => NODE_BY_ID[id].name).join(', ')} will close again.
               </span>
             </div>
           )}
@@ -131,7 +131,7 @@ export function EraseDialog({ fileId }: { fileId: string }) {
           </div>
           <p>
             Reconstructing this topic will require retaking its questions. Notes in other files that you wrote yourself are
-            not touched. (Prototype: this is a simulated deletion of local demo data.)
+            not touched.
           </p>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span>

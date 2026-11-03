@@ -12,7 +12,7 @@ function tabLabel(t: Tab): { label: string; Icon: typeof Network } {
     case 'questionnaire':
       return { label: NODE_BY_ID[t.nodeId].name, Icon: ClipboardList };
     case 'onboarding':
-      return { label: 'Who am I? — onboarding', Icon: Sparkles };
+      return { label: 'Who am I?', Icon: Sparkles };
   }
 }
 
@@ -38,7 +38,7 @@ export function TabBar() {
           >
             <Icon size={13} />
             <span className="label">{label}</span>
-            {t.kind === 'file' && files[t.fileId]?.proposal && <span className="badge-dot" title="Proposed update" />}
+            {t.kind === 'file' && files[t.fileId]?.proposal && <span className="badge-dot" title="Draft to review" />}
             {i > 0 && (
               <button
                 className="close"

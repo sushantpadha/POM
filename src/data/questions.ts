@@ -1,14 +1,12 @@
-import type { AnswerValue, GoalAnswer, Option, Question } from '../types';
+import type { AnswerValue, Option, ProjectAnswer, Question } from '../types';
 
-export const LIKERT_LABELS = [
-  'Strongly disagree',
-  'Disagree',
-  'Neither',
-  'Agree',
-  'Strongly agree',
-];
+// Branch items (E1–E5, W1–W5, G1–G5) are taken from the prototype writeup (Doc 2),
+// wording unchanged. Deeper items are our paraphrases of the instruments the
+// writeups cite. "Adapted" items are paraphrased, never the original wording, and
+// no instrument is administered in full, so nothing here produces a score.
 
-/** Pick one of three phrasings depending on a 1–5 agreement value. */
+export const LIKERT_LABELS = ['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'];
+
 function agree(v: AnswerValue, high: string, mid: string, low: string): string {
   const n = Number(v);
   if (n >= 4) return high;
@@ -16,7 +14,14 @@ function agree(v: AnswerValue, high: string, mid: string, low: string): string {
   return low;
 }
 
-function optionLabel(options: Option[], v: AnswerValue): string {
+function tenPoint(v: AnswerValue, high: string, mid: string, low: string): string {
+  const n = Number(v);
+  if (n >= 7) return high;
+  if (n >= 4) return mid;
+  return low;
+}
+
+export function optionLabel(options: Option[], v: AnswerValue): string {
   return options.find((o) => o.value === v)?.label ?? String(v);
 }
 
@@ -28,731 +33,597 @@ function ranked(options: Option[], v: AnswerValue, take = 2): string {
     .join(', then ');
 }
 
-function quoted(v: AnswerValue): string {
-  return `In my words: “${String(v).trim()}”`;
+const quote = (prefix: string) => (v: AnswerValue) => `${prefix} “${String(v).trim()}”`;
+
+function ratingList(sliders: Option[], v: AnswerValue): string {
+  const r = (v ?? {}) as Record<string, number>;
+  return sliders
+    .filter((s) => r[s.value] !== undefined)
+    .map((s) => `${s.label.toLowerCase()} ${r[s.value]}/10`)
+    .join(', ');
 }
 
-const HRM_01_OPTS: Option[] = [
-  { value: 'consequences', label: 'Its consequences for the people affected' },
-  { value: 'rules', label: 'Whether it follows a principle or rule' },
+const E5_OPTS: Option[] = [
+  { value: 'consequences', label: 'Its consequences' },
+  { value: 'rule', label: 'A rule or principle' },
   { value: 'intentions', label: 'The intentions behind it' },
-  { value: 'fairness', label: 'Whether it is fair to everyone involved' },
+  { value: 'fairness', label: 'Fairness to everyone' },
 ];
 
-const WV_02_OPTS: Option[] = [
-  { value: 'experience', label: 'Personal experience' },
-  { value: 'science', label: 'Scientific evidence' },
-  { value: 'people', label: 'Trusted people (family, mentors)' },
-  { value: 'tradition', label: 'Tradition or faith' },
+const W2_OPTS: Option[] = [
+  { value: 'experts', label: 'Experts' },
+  { value: 'experience', label: 'Experience' },
+  { value: 'tradition', label: 'Family / tradition' },
   { value: 'intuition', label: 'Intuition' },
+  { value: 'texts', label: 'Texts' },
 ];
 
-const OTH_02_OPTS: Option[] = [
-  { value: 'family', label: 'Family' },
-  { value: 'close', label: 'Close friends & partner' },
-  { value: 'community', label: 'Your community' },
-  { value: 'strangers', label: 'Strangers in need' },
-  { value: 'self', label: 'Myself' },
+const ASPIRATIONS: Option[] = [
+  { value: 'wealth', label: 'Financial success' },
+  { value: 'relationships', label: 'Close relationships' },
+  { value: 'growth', label: 'Personal growth' },
+  { value: 'recognition', label: 'Recognition' },
+  { value: 'community', label: 'Community' },
 ];
 
-const GOL_04_OPTS: Option[] = [
+const G5_OPTS: Option[] = [
   { value: 'career', label: 'Career & work' },
   { value: 'family', label: 'Family & relationships' },
   { value: 'health', label: 'Health' },
-  { value: 'learning', label: 'Learning & creativity' },
-  { value: 'community', label: 'Community & contribution' },
+  { value: 'learning', label: 'Learning' },
+  { value: 'community', label: 'Community' },
 ];
 
-const GVL_01_OPTS: Option[] = [
-  { value: 'curiosity', label: 'Curiosity' },
-  { value: 'helping', label: 'Helping others' },
-  { value: 'independence', label: 'Independence' },
-  { value: 'family', label: 'Family' },
-  { value: 'security', label: 'Security' },
-  { value: 'achievement', label: 'Achievement' },
+const PROJECT_SLIDERS: Option[] = [
+  { value: 'importance', label: 'Importance' },
+  { value: 'control', label: 'Control' },
 ];
 
-const EPQ_NOTE =
-  'Construct: ethical idealism / relativism (Forsyth, 1980, Ethics Position Questionnaire). Paraphrased for this prototype — not the original item wording.';
+const PROJECT_APPRAISAL: Option[] = [
+  { value: 'enjoyment', label: 'Enjoyment' },
+  { value: 'stress', label: 'Stress' },
+  { value: 'progress', label: 'Progress so far' },
+  { value: 'fit', label: 'Personal fit' },
+];
+
+const EPQ = 'Ethics Position Questionnaire (EPQ-5), Forsyth.';
+const ROTTER = 'Locus-of-control scale (Rotter, 1966), forced-choice format.';
+const MLQ = 'Meaning in Life Questionnaire (Steger et al., 2006).';
+const PPA = 'Personal Projects Analysis (Little, 1983).';
+const AI = 'Aspiration Index (Kasser & Ryan, 1996).';
+const FILIAL = 'Dual filial piety model (Yeh & Bedford, 2003).';
 
 export const QUESTIONS: Question[] = [
-  // ── Ethics ─────────────────────────────────────────────────
+  // ── Ethics (Doc 2: E1–E5) ──────────────────────────────────
   {
-    id: 'ETH-01',
+    id: 'E1',
     nodeId: 'ethics',
-    text: 'People should take care that their actions never intentionally harm another person, even in small ways.',
+    text: 'A moral action is one that produces the least harm for everyone involved.',
     type: 'likert',
     selfTags: ['idealism'],
+    fileIds: ['ethics/moral-principles'],
     stability: 'stable',
     source: 'adapted',
-    sourceNote: EPQ_NOTE + ' Idealism subscale.',
-    askConfidence: true,
+    sourceNote: EPQ,
     note: (v) =>
       agree(
         v,
-        'Avoiding harm to others is close to an absolute principle for me.',
-        'I care about avoiding harm, but do not treat it as absolute.',
-        'Some harm is an acceptable part of acting in the world.',
+        'I judge an action as moral when it causes the least harm overall.',
+        'I am unsure whether “least harm overall” is what makes an action moral.',
+        'For me, causing the least harm overall is not what makes an action moral.',
       ),
   },
   {
-    id: 'ETH-02',
+    id: 'E2',
     nodeId: 'ethics',
-    text: 'If an action could harm an innocent person, it should not be done — even if it would benefit many others.',
-    type: 'likert',
-    selfTags: ['idealism', 'harm-concern'],
-    stability: 'stable',
-    source: 'adapted',
-    sourceNote: EPQ_NOTE + ' Idealism subscale.',
-    note: (v) =>
-      agree(
-        v,
-        'I would rather forgo a benefit to many than risk harming one innocent person.',
-        'Whether a benefit to many justifies risk to one depends on the case.',
-        'Benefits to many can justify a risk of harm to an innocent person.',
-      ),
-  },
-  {
-    id: 'ETH-03',
-    nodeId: 'ethics',
-    text: 'What counts as ethical varies from one situation and culture to another.',
+    text: 'What is ethical depends on the situation and culture; no rule applies everywhere.',
     type: 'likert',
     selfTags: ['relativism'],
+    fileIds: ['ethics/moral-principles'],
     stability: 'stable',
     source: 'adapted',
-    sourceNote: EPQ_NOTE + ' Relativism subscale.',
-    askConfidence: true,
+    sourceNote: EPQ,
     note: (v) =>
       agree(
         v,
-        'I think what is ethical genuinely varies across situations and cultures.',
-        'I am undecided on how much ethics varies across situations and cultures.',
-        'I think core ethical standards hold across situations and cultures.',
+        'I think what is ethical depends on the situation and culture.',
+        'I am undecided on whether ethics depends on the situation and culture.',
+        'I think some moral rules apply everywhere.',
       ),
   },
   {
-    id: 'ETH-04',
+    id: 'E3',
     nodeId: 'ethics',
-    text: 'Moral rules are best treated as guidelines; strict, universal codes rarely fit real situations.',
-    type: 'likert',
-    selfTags: ['relativism'],
+    text: 'Would you break a promise to prevent minor harm to a stranger? Why or why not?',
+    type: 'text',
+    selfTags: ['moral-principles'],
+    fileIds: ['ethics/moral-principles'],
     stability: 'stable',
-    source: 'adapted',
-    sourceNote: EPQ_NOTE + ' Relativism subscale.',
-    note: (v) =>
-      agree(
-        v,
-        'I treat moral rules as guidelines rather than strict codes.',
-        'I see moral rules as somewhere between firm codes and guidelines.',
-        'I prefer firm moral rules over case-by-case guidelines.',
-      ),
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: quote('Promise vs. minor harm:'),
   },
   {
-    id: 'ETH-05',
+    id: 'E4',
     nodeId: 'ethics',
-    text: 'When a family obligation and a personal goal conflict, which usually guides you?',
-    type: 'choice',
-    options: [
-      { value: 'family', label: 'The family obligation' },
-      { value: 'depends', label: 'It depends on the situation' },
-      { value: 'goal', label: 'The personal goal' },
-      { value: 'unsure', label: 'I am not sure' },
-    ],
+    text: 'How much do you feel you owe your elders in time, money or career decisions?',
+    type: 'slider',
+    scale: ['Nothing in particular', 'A great deal'],
     selfTags: ['family-duty'],
+    fileIds: ['ethics/family-obligations'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item for this project.',
+    source: 'new',
+    sourceNote: 'Our own question.',
     askConfidence: true,
     note: (v) =>
-      ({
-        family: 'When family obligations and personal goals conflict, family usually guides me.',
-        depends: 'When family obligations and personal goals conflict, it depends on the situation.',
-        goal: 'When family obligations and personal goals conflict, my own goal usually guides me.',
-        unsure: 'I am unsure what guides me when family obligations and personal goals conflict.',
-      })[String(v)] ?? '',
+      `What I owe my elders in time, money or career decisions: ${v}/10 — ${tenPoint(v, 'a lot', 'some', 'not much')}.`,
   },
   {
-    id: 'ETH-06',
+    id: 'E5',
     nodeId: 'ethics',
-    text: 'Describe a recent situation where you were not sure what the right thing to do was.',
-    type: 'text',
-    selfTags: ['moral-reflection'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open reflection prompt, newly designed.',
-    note: quoted,
-  },
-  // ── Harm & Consequences ────────────────────────────────────
-  {
-    id: 'HRM-01',
-    nodeId: 'eth-harm',
-    text: 'Rank what matters most when you judge whether an action was right.',
+    text: 'What matters most when you judge whether an action was right?',
+    help: 'Put the most important first.',
     type: 'rank',
-    options: HRM_01_OPTS,
-    selfTags: ['outcomes'],
+    options: E5_OPTS,
+    selfTags: ['idealism'],
+    fileIds: ['ethics/moral-principles'],
     stability: 'stable',
-    source: 'research-informed',
-    sourceNote:
-      'Informed by the consequentialist / deontological distinction in moral psychology; item newly worded.',
-    note: (v) => `When judging actions I weigh ${ranked(HRM_01_OPTS, v)} most.`,
+    source: 'informed',
+    sourceNote: 'Our own question, informed by moral psychology (consequences vs. rules vs. intentions).',
+    note: (v) => `When I judge an action I look first at ${ranked(E5_OPTS, v)}.`,
   },
+  // ── Moral Principles (EPQ-5, paraphrased) ──────────────────
   {
-    id: 'HRM-02',
-    nodeId: 'eth-harm',
-    text: 'I feel responsible for harms that result from things I failed to do, not only from things I did.',
+    id: 'MP1',
+    nodeId: 'moral',
+    text: 'It is never acceptable to risk harming another person, however small the risk.',
     type: 'likert',
-    selfTags: ['harm-sensitivity'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Exploratory item on omission vs. commission; newly designed.',
+    selfTags: ['idealism'],
+    fileIds: ['ethics/moral-principles'],
+    stability: 'stable',
+    source: 'adapted',
+    sourceNote: `${EPQ} Idealism.`,
     askConfidence: true,
     note: (v) =>
       agree(
         v,
-        'I hold myself responsible for harms I fail to prevent, not only harms I cause.',
-        'I am unsure how responsible I am for harms I fail to prevent.',
-        'I mainly feel responsible for harms I directly cause.',
+        'Risking harm to another person is never acceptable to me, even a small risk.',
+        'I am unsure whether small risks of harm to others can be acceptable.',
+        'Small risks of harm to others can be acceptable to me.',
       ),
   },
   {
-    id: 'HRM-03',
-    nodeId: 'eth-harm',
-    text: 'Small harms can be acceptable when they prevent a larger harm.',
+    id: 'MP2',
+    nodeId: 'moral',
+    text: 'Doing the right thing sometimes means accepting that someone will be hurt.',
     type: 'likert',
-    selfTags: ['outcomes'],
+    selfTags: ['idealism'],
+    fileIds: ['ethics/moral-principles'],
     stability: 'stable',
-    source: 'research-informed',
-    sourceNote: 'Informed by outcome-based moral reasoning research; item newly worded.',
+    source: 'adapted',
+    sourceNote: `${EPQ} Idealism, reverse-worded.`,
     note: (v) =>
       agree(
         v,
-        'I accept small harms when they prevent a larger one.',
-        'Whether a small harm is worth preventing a larger one depends on the case.',
-        'I am reluctant to accept even small harms to prevent larger ones.',
+        'Doing the right thing can mean accepting that someone gets hurt.',
+        'I am unsure whether doing right can justify someone getting hurt.',
+        'Doing the right thing should not mean someone gets hurt.',
       ),
   },
-  // ── Universal vs Contextual ────────────────────────────────
   {
-    id: 'UNI-01',
-    nodeId: 'eth-universal',
-    text: 'The same moral principles should apply to everyone, regardless of culture or circumstance.',
+    id: 'MP3',
+    nodeId: 'moral',
+    text: 'Whether a lie is wrong depends on the circumstances around it.',
     type: 'likert',
-    selfTags: ['universalism'],
+    selfTags: ['relativism'],
+    fileIds: ['ethics/moral-principles'],
     stability: 'stable',
-    source: 'research-informed',
-    sourceNote: 'Informed by the relativism construct (Forsyth, 1980); item newly worded.',
-    askConfidence: true,
+    source: 'adapted',
+    sourceNote: `${EPQ} Relativism.`,
     note: (v) =>
       agree(
         v,
-        'I think the same moral principles should apply to everyone.',
-        'I am torn on whether moral principles should be universal.',
-        'I think moral principles should adapt to culture and circumstance.',
+        'Whether a lie is wrong depends on the circumstances.',
+        'I am unsure whether circumstances change whether a lie is wrong.',
+        'Lying is wrong whatever the circumstances.',
       ),
   },
   {
-    id: 'UNI-02',
-    nodeId: 'eth-universal',
-    text: 'A friend lies to protect someone from serious harm. The lie is…',
-    type: 'choice',
-    options: [
-      { value: 'wrong', label: 'Always wrong' },
-      { value: 'understandable', label: 'Wrong, but understandable' },
-      { value: 'justified', label: 'Justified in that context' },
-      { value: 'right', label: 'The right thing to do' },
-    ],
-    selfTags: ['contextualism'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Short vignette, newly designed.',
-    note: (v) =>
-      `A protective lie seems ${({ wrong: 'always wrong', understandable: 'wrong but understandable', justified: 'justified in context', right: 'like the right thing to do' } as Record<string, string>)[String(v)] ?? String(v)} to me.`,
-  },
-  // ── Obligations to Elders & Family ─────────────────────────
-  {
-    id: 'FAM-01',
-    nodeId: 'eth-family',
-    text: 'Adult children have a moral obligation to personally care for their parents as they age.',
+    id: 'MP4',
+    nodeId: 'moral',
+    text: 'Moral standards are personal: what one person thinks is right, another can reasonably think is wrong.',
     type: 'likert',
-    selfTags: ['eldercare', 'family-duty'],
+    selfTags: ['relativism'],
+    fileIds: ['ethics/moral-principles'],
     stability: 'stable',
-    source: 'research-informed',
-    sourceNote: 'Informed by research on filial obligation / filial responsibility; item newly worded.',
-    askConfidence: true,
+    source: 'adapted',
+    sourceNote: `${EPQ} Relativism.`,
     note: (v) =>
       agree(
         v,
-        'I believe adult children owe their parents personal care as they age.',
-        'I am unsure whether adult children owe their parents personal care.',
-        'I do not think adult children are obliged to provide personal care.',
+        'I see moral standards as personal; reasonable people can disagree.',
+        'I am unsure whether moral standards are personal.',
+        'I think moral standards are shared, not just personal.',
+      ),
+  },
+  // ── Family Relationships ───────────────────────────────────
+  {
+    id: 'FR1',
+    nodeId: 'family',
+    text: 'I want to support my parents later in life because of what they have given me.',
+    type: 'likert',
+    selfTags: ['filial'],
+    fileIds: ['ethics/family-obligations'],
+    stability: 'stable',
+    source: 'informed',
+    sourceNote: `Our wording, informed by the reciprocal side of the ${FILIAL}`,
+    note: (v) =>
+      agree(
+        v,
+        'I want to support my parents later in life because of what they have given me.',
+        'I am unsure how much I want to support my parents later in life.',
+        'Supporting my parents later in life is not something I feel strongly about.',
       ),
   },
   {
-    id: 'FAM-02',
-    nodeId: 'eth-family',
-    text: 'Which best describes what you owe your elders?',
-    type: 'choice',
-    options: [
-      { value: 'daily', label: 'Hands-on, daily care' },
-      { value: 'nearby', label: 'Being nearby and available' },
-      { value: 'support', label: 'Financial and practical support' },
-      { value: 'contact', label: 'Regular contact and emotional support' },
-      { value: 'relationship', label: 'It depends on the relationship' },
-    ],
-    selfTags: ['eldercare'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
+    id: 'FR2',
+    nodeId: 'family',
+    text: 'Children should go along with their parents’ wishes on major life decisions, even when they disagree.',
+    type: 'likert',
+    selfTags: ['filial'],
+    fileIds: ['ethics/family-obligations'],
+    stability: 'stable',
+    source: 'informed',
+    sourceNote: `Our wording, informed by the authoritarian side of the ${FILIAL}`,
     note: (v) =>
-      `What I owe my elders, at minimum: ${({ daily: 'hands-on, daily care', nearby: 'being nearby and available', support: 'financial and practical support', contact: 'regular contact and emotional support', relationship: 'it depends on the relationship' } as Record<string, string>)[String(v)] ?? String(v)}.`,
+      agree(
+        v,
+        'On major decisions, I think children should follow their parents’ wishes even when they disagree.',
+        'I am unsure whether children should follow their parents’ wishes on major decisions.',
+        'On major decisions, I think children can go against their parents’ wishes.',
+      ),
   },
   {
-    id: 'FAM-03',
-    nodeId: 'eth-family',
-    text: 'Is there a limit to what this obligation can ask of you? Where would you draw it?',
+    id: 'FR3',
+    nodeId: 'family',
+    text: 'Is there a limit to what you owe your family? Where would you draw it?',
     type: 'text',
-    selfTags: ['eldercare-limits'],
+    selfTags: ['filial-limits'],
+    fileIds: ['ethics/family-obligations'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Deeper open question, newly designed.',
+    source: 'new',
+    sourceNote: 'Our own question.',
     askConfidence: true,
-    note: (v) => `Limit of the obligation — “${String(v).trim()}”`,
-  },
-  {
-    id: 'FAM-04',
-    nodeId: 'eth-family',
-    text: 'Meeting family obligations is part of what makes a life good, not just a constraint on it.',
-    type: 'likert',
-    selfTags: ['care'],
-    stability: 'stable',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
-    note: (v) =>
-      agree(
-        v,
-        'Meeting family obligations is part of a good life for me, not only a constraint.',
-        'Family obligations feel partly meaningful, partly constraining.',
-        'Family obligations feel mostly like constraints.',
-      ),
+    note: quote('Where the obligation stops:'),
   },
   // ── Care vs Ambition ───────────────────────────────────────
   {
-    id: 'TRD-01',
-    nodeId: 'eth-tradeoffs',
-    text: 'If a 3-year opportunity abroad meant seeing your family twice a year, you would most likely…',
+    id: 'CA1',
+    nodeId: 'tradeoffs',
+    text: 'If an important opportunity meant seeing your family much less for several years, you would most likely…',
     type: 'choice',
     options: [
-      { value: 'take-plan', label: 'Take it, with a concrete care plan' },
-      { value: 'negotiate', label: 'Negotiate a shorter or partly remote version' },
-      { value: 'decline', label: 'Decline it' },
-      { value: 'unsure', label: 'I genuinely do not know' },
+      { value: 'take', label: 'Take it, with a plan for staying involved' },
+      { value: 'negotiate', label: 'Try to get a smaller or shorter version' },
+      { value: 'decline', label: 'Turn it down' },
+      { value: 'unsure', label: 'I don’t know' },
     ],
     selfTags: ['tradeoff'],
+    fileIds: ['ethics/family-obligations'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Hypothetical trade-off vignette, newly designed.',
+    source: 'new',
+    sourceNote: 'Our own question.',
     askConfidence: true,
     note: (v) =>
-      `Facing a 3-year opportunity abroad, I would most likely: ${({ 'take-plan': 'take it, with a concrete care plan', negotiate: 'negotiate a shorter or partly remote version', decline: 'decline it', unsure: 'I genuinely do not know' } as Record<string, string>)[String(v)] ?? String(v)}.`,
+      `Facing an opportunity that means seeing family much less, I would most likely ${({ take: 'take it, with a plan for staying involved', negotiate: 'try to get a smaller or shorter version', decline: 'turn it down', unsure: '— I don’t know' } as Record<string, string>)[String(v)] ?? v}.`,
   },
   {
-    id: 'TRD-02',
-    nodeId: 'eth-tradeoffs',
-    text: 'What would need to be true for you to feel at peace with that choice?',
+    id: 'CA2',
+    nodeId: 'tradeoffs',
+    text: 'What would need to be true for you to be at peace with that choice?',
     type: 'text',
     selfTags: ['tradeoff'],
+    fileIds: ['ethics/family-obligations'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open reflection prompt, newly designed.',
-    note: (v) => `To be at peace with it: “${String(v).trim()}”`,
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: quote('To be at peace with it:'),
   },
-  // ── Worldview ──────────────────────────────────────────────
+  // ── Worldview (Doc 2: W1–W5) ───────────────────────────────
   {
-    id: 'WV-01',
+    id: 'W1',
     nodeId: 'worldview',
-    text: 'What happens in my life is mostly determined by my own choices and effort.',
+    text: 'My own choices matter more than luck or circumstances in shaping my life.',
     type: 'likert',
-    selfTags: ['agency'],
-    stability: 'flexible',
-    source: 'research-informed',
-    sourceNote:
-      'Informed by the locus-of-control construct (Rotter, 1966). Single exploratory item — not the original scale.',
-    askConfidence: true,
-    note: (v) =>
-      agree(
-        v,
-        'I see my life as mostly shaped by my own choices and effort.',
-        'I see my life as shaped about equally by my choices and by circumstance.',
-        'I see my life as largely shaped by circumstance and other people.',
-      ),
-  },
-  {
-    id: 'WV-02',
-    nodeId: 'worldview',
-    text: 'Which sources do you trust most when forming beliefs about important questions?',
-    type: 'rank',
-    options: WV_02_OPTS,
-    selfTags: ['epistemic'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory ranking.',
-    note: (v) => `For important beliefs I trust ${ranked(WV_02_OPTS, v)} most.`,
-  },
-  {
-    id: 'WV-03',
-    nodeId: 'worldview',
-    text: 'People have obligations to strangers, not only to those close to them.',
-    type: 'likert',
-    selfTags: ['others-obligation'],
+    selfTags: ['personal-agency'],
+    fileIds: ['worldview/personal-agency'],
     stability: 'stable',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
+    source: 'adapted',
+    sourceNote: 'Adapted from the locus-of-control construct (Rotter, 1966).',
     askConfidence: true,
     note: (v) =>
       agree(
         v,
-        'I believe we have real obligations to strangers, not only to people close to us.',
-        'I am unsure how much we owe strangers compared with people close to us.',
-        'I think our obligations are mainly to people close to us.',
+        'My own choices matter more than luck or circumstances in shaping my life.',
+        'I give my choices and my circumstances roughly equal weight.',
+        'Luck and circumstances shape my life more than my choices.',
       ),
   },
   {
-    id: 'WV-04',
+    id: 'W2',
     nodeId: 'worldview',
-    text: 'What is one belief you have changed your mind about in the past few years?',
+    text: 'When I need to decide what is true, I mostly rely on…',
+    help: 'Put what you rely on most first.',
+    type: 'rank',
+    options: W2_OPTS,
+    selfTags: ['sources-of-knowledge'],
+    fileIds: ['worldview/sources-of-knowledge'],
+    stability: 'stable',
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: (v) => `To decide what is true I rely most on ${ranked(W2_OPTS, v)}.`,
+  },
+  {
+    id: 'W3',
+    nodeId: 'worldview',
+    text: 'How much responsibility do you have toward people outside your family or community?',
+    type: 'slider',
+    scale: ['None', 'A great deal'],
+    selfTags: ['obligations-to-others'],
+    fileIds: ['worldview/obligations-to-others'],
+    stability: 'stable',
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: (v) => `My responsibility toward people outside my family or community: ${v}/10.`,
+  },
+  {
+    id: 'W4',
+    nodeId: 'worldview',
+    text: 'Name one belief you’ve changed in the last two years.',
     type: 'text',
-    selfTags: ['belief-change'],
+    selfTags: ['worldview'],
+    fileIds: ['worldview/main'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open reflection prompt, newly designed.',
-    note: (v) => `A belief I changed: “${String(v).trim()}”`,
-  },
-  // ── Personal Agency ────────────────────────────────────────
-  {
-    id: 'AGY-01',
-    nodeId: 'wv-agency',
-    text: 'When plans fail, I usually look first at what I could have done differently.',
-    type: 'likert',
-    selfTags: ['agency'],
-    stability: 'flexible',
-    source: 'research-informed',
-    sourceNote: 'Informed by attribution-style research; item newly worded.',
-    note: (v) =>
-      agree(
-        v,
-        'When plans fail, I look first at my own part in it.',
-        'When plans fail, I look at both my part and the circumstances.',
-        'When plans fail, I look first at circumstances outside my control.',
-      ),
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: quote('A belief I changed:'),
   },
   {
-    id: 'AGY-02',
-    nodeId: 'wv-agency',
-    text: 'Luck, circumstance and support from others have shaped where I am…',
+    id: 'W5',
+    nodeId: 'worldview',
+    text: 'In a sentence: what would make your life feel well used?',
+    type: 'text',
+    // Doc 2 tags W5 as #epistemic; it asks about purpose, so it is tagged #purpose here.
+    selfTags: ['purpose'],
+    fileIds: ['worldview/main'],
+    stability: 'flexible',
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: quote('A life well used:'),
+  },
+  // ── Personal Agency (Rotter-style forced choice, paraphrased) ──
+  {
+    id: 'PA1',
+    nodeId: 'agency',
+    text: 'Which statement is closer to what you believe?',
     type: 'choice',
     options: [
-      { value: 'little', label: 'Very little' },
-      { value: 'somewhat', label: 'Somewhat' },
-      { value: 'alot', label: 'A lot' },
-      { value: 'most', label: 'More than my own effort' },
+      { value: 'internal', label: 'Getting ahead mostly depends on effort and ability.' },
+      { value: 'external', label: 'Getting ahead mostly depends on being in the right place at the right time.' },
     ],
-    selfTags: ['meaning'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
+    selfTags: ['agency-belief'],
+    fileIds: ['worldview/personal-agency'],
+    stability: 'stable',
+    source: 'adapted',
+    sourceNote: ROTTER,
     note: (v) =>
-      `Luck, circumstance and support have shaped where I am: ${({ little: 'very little', somewhat: 'somewhat', alot: 'a lot', most: 'more than my own effort' } as Record<string, string>)[String(v)] ?? String(v)}.`,
+      v === 'internal'
+        ? 'Getting ahead mostly depends on effort and ability.'
+        : 'Getting ahead mostly depends on being in the right place at the right time.',
   },
   {
-    id: 'AGY-03',
-    nodeId: 'wv-agency',
-    text: 'What would you like to have more control over in the next five years?',
-    type: 'text',
-    selfTags: ['meaning'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open reflection prompt, newly designed.',
-    note: (v) => `I want more control over: “${String(v).trim()}”`,
-  },
-  // ── Sources of Knowledge ───────────────────────────────────
-  {
-    id: 'KNW-01',
-    nodeId: 'wv-knowledge',
-    text: 'I am comfortable acting on a decision while still feeling uncertain about it.',
-    type: 'likert',
-    selfTags: ['uncertainty'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
-    askConfidence: true,
-    note: (v) =>
-      agree(
-        v,
-        'I am comfortable acting while still uncertain.',
-        'Acting under uncertainty is sometimes fine for me, sometimes not.',
-        'I prefer to resolve uncertainty before acting.',
-      ),
-  },
-  {
-    id: 'KNW-02',
-    nodeId: 'wv-knowledge',
-    text: 'When evidence contradicts something you believe strongly, you most often…',
+    id: 'PA2',
+    nodeId: 'agency',
+    text: 'Which statement is closer to what you believe?',
     type: 'choice',
     options: [
-      { value: 'flaws', label: 'Look for flaws in the evidence' },
-      { value: 'update', label: 'Update gradually' },
-      { value: 'ask', label: 'Ask someone you trust' },
-      { value: 'hold', label: 'Hold both views for a while' },
+      { value: 'internal', label: 'What happens to me is mostly my own doing.' },
+      { value: 'external', label: 'I often have little influence over what happens to me.' },
     ],
-    selfTags: ['belief-updating'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
-    note: (v) =>
-      `When evidence contradicts a strong belief, I usually ${({ flaws: 'look for flaws in the evidence', update: 'update gradually', ask: 'ask someone I trust', hold: 'hold both views for a while' } as Record<string, string>)[String(v)] ?? String(v)}.`,
-  },
-  // ── Obligations to Others ──────────────────────────────────
-  {
-    id: 'OTH-01',
-    nodeId: 'wv-others',
-    text: 'If I can prevent serious harm to a stranger at modest cost to myself, I am obliged to.',
-    type: 'likert',
-    selfTags: ['others-obligation'],
+    selfTags: ['agency-belief'],
+    fileIds: ['worldview/personal-agency'],
     stability: 'stable',
-    source: 'research-informed',
-    sourceNote: 'Informed by the "duty of easy rescue" argument (Singer, 1972); item newly worded.',
-    askConfidence: true,
+    source: 'adapted',
+    sourceNote: ROTTER,
     note: (v) =>
-      agree(
-        v,
-        'If I can prevent serious harm to a stranger at modest cost, I am obliged to.',
-        'I am unsure whether preventing harm to strangers is an obligation or a kindness.',
-        'Helping strangers is good but not an obligation for me.',
-      ),
+      v === 'internal'
+        ? 'What happens to me is mostly my own doing.'
+        : 'I often have little influence over what happens to me.',
   },
   {
-    id: 'OTH-02',
-    nodeId: 'wv-others',
-    text: 'Rank whose wellbeing should weigh most in your major decisions.',
-    type: 'rank',
-    options: OTH_02_OPTS,
-    selfTags: ['circle-of-concern'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory ranking.',
-    note: (v) => {
-      const order = Array.isArray(v) ? v : [];
-      const last = order[order.length - 1];
-      return `In major decisions I weigh ${ranked(OTH_02_OPTS, v)} most${last ? `, and ${optionLabel(OTH_02_OPTS, last).toLowerCase()} least` : ''}.`;
-    },
-  },
-  // ── Meaning & Purpose ──────────────────────────────────────
-  {
-    id: 'MNG-01',
-    nodeId: 'wv-meaning',
-    text: 'In a sentence: what would make your life feel well-used?',
+    id: 'PA3',
+    nodeId: 'agency',
+    text: 'Think of something that went well recently. How much of it was you, and how much was luck or help?',
     type: 'text',
-    selfTags: ['purpose'],
+    selfTags: ['agency-belief'],
+    fileIds: ['worldview/personal-agency'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open reflection prompt, newly designed.',
-    note: (v) => `A well-used life: “${String(v).trim()}”`,
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: quote('Something that went well:'),
   },
+  // ── Meaning in Life (MLQ, paraphrased) ─────────────────────
   {
-    id: 'MNG-02',
-    nodeId: 'wv-meaning',
-    text: 'My day-to-day work connects to something I find meaningful.',
+    id: 'ML1',
+    nodeId: 'meaning',
+    text: 'I have a clear sense of what makes my life meaningful.',
     type: 'likert',
-    selfTags: ['purpose'],
+    selfTags: ['meaning'],
+    fileIds: ['worldview/main'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
+    source: 'adapted',
+    sourceNote: `${MLQ} Presence of meaning.`,
     askConfidence: true,
     note: (v) =>
       agree(
         v,
-        'My day-to-day work feels connected to what I find meaningful.',
-        'My day-to-day work is only partly connected to what I find meaningful.',
-        'My day-to-day work feels disconnected from what I find meaningful.',
+        'I have a clear sense of what makes my life meaningful.',
+        'I have a partial sense of what makes my life meaningful.',
+        'I don’t yet have a clear sense of what makes my life meaningful.',
       ),
   },
-  // ── Long-term Goals ────────────────────────────────────────
   {
-    id: 'GOL-01',
+    id: 'ML2',
+    nodeId: 'meaning',
+    text: 'My life has a clear direction.',
+    type: 'likert',
+    selfTags: ['meaning'],
+    fileIds: ['worldview/main'],
+    stability: 'flexible',
+    source: 'adapted',
+    sourceNote: `${MLQ} Presence of meaning.`,
+    note: (v) => agree(v, 'My life has a clear direction.', 'My life has some direction.', 'My life doesn’t have a clear direction right now.'),
+  },
+  {
+    id: 'ML3',
+    nodeId: 'meaning',
+    text: 'I am looking for something that would make my life feel more meaningful.',
+    type: 'likert',
+    selfTags: ['meaning'],
+    fileIds: ['worldview/main'],
+    stability: 'flexible',
+    source: 'adapted',
+    sourceNote: `${MLQ} Search for meaning.`,
+    note: (v) =>
+      agree(
+        v,
+        'I am looking for something that would make my life feel more meaningful.',
+        'I am somewhat looking for more meaning.',
+        'I am not actively looking for more meaning.',
+      ),
+  },
+  // ── Long-term Goals (Doc 2: G1–G5) ─────────────────────────
+  {
+    id: 'G1',
     nodeId: 'goals',
-    text: 'In your own words, describe one long-term goal (5+ years) and rate how important it is to you.',
-    type: 'goal',
-    selfTags: ['goal-stated'],
+    text: 'Describe one project you are working on. How important is it (0–10)? How much control do you have over it?',
+    type: 'project',
+    sliders: PROJECT_SLIDERS,
+    selfTags: ['career'],
+    fileIds: ['long-term-goals/career'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Free-text goal elicitation with an importance rating; newly designed.',
+    source: 'adapted',
+    sourceNote: `Adapted from ${PPA}`,
     note: (v) => {
-      const g = v as GoalAnswer;
-      return `Goal: ${g.text.trim()} (importance ${g.importance}/10)`;
+      const p = v as ProjectAnswer;
+      return `Project: ${p.text.trim()} (${ratingList(PROJECT_SLIDERS, p.ratings)})`;
     },
   },
   {
-    id: 'GOL-02',
+    id: 'G2',
     nodeId: 'goals',
-    text: 'Why does this goal matter to you?',
+    text: 'Picture yourself in 10 years, with things having gone well. What are you doing?',
     type: 'text',
-    selfTags: ['goal-why'],
+    selfTags: ['career', 'relationships'],
+    fileIds: ['long-term-goals/career', 'long-term-goals/relationships'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open prompt, newly designed.',
-    askConfidence: true,
-    note: (v) => `Why it matters: “${String(v).trim()}”`,
+    source: 'adapted',
+    sourceNote: 'Adapted from the Best Possible Self exercise (King, 2001).',
+    note: quote('In ten years, if things go well:'),
   },
   {
-    id: 'GOL-03',
+    id: 'G3',
     nodeId: 'goals',
-    text: 'Pursuing this goal will likely require relocating or long periods away from home.',
-    type: 'likert',
-    scale: ['Very unlikely', 'Very likely'],
-    selfTags: ['relocation-consideration'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
-    note: (v) =>
-      agree(
-        v,
-        'Pursuing this goal will likely mean relocating or long periods away from home.',
-        'Pursuing this goal may or may not mean time away from home.',
-        'Pursuing this goal probably will not require leaving home.',
-      ),
+    text: 'Rate how important each is to you.',
+    type: 'sliders',
+    sliders: ASPIRATIONS,
+    selfTags: ['aspirations'],
+    fileIds: ['long-term-goals/main'],
+    stability: 'stable',
+    source: 'adapted',
+    sourceNote: `Adapted from the ${AI}`,
+    note: (v) => `Importance: ${ratingList(ASPIRATIONS, v)}.`,
   },
   {
-    id: 'GOL-04',
+    id: 'G4',
+    nodeId: 'goals',
+    text: 'What kind of family or relationship life do you want in the future?',
+    type: 'text',
+    selfTags: ['relationships'],
+    fileIds: ['long-term-goals/relationships'],
+    stability: 'flexible',
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: quote('Family and relationship life I want:'),
+  },
+  {
+    id: 'G5',
     nodeId: 'goals',
     text: 'Rank these areas by how much attention you want to give them over the next ten years.',
+    help: 'Put what you want to give the most attention first.',
     type: 'rank',
-    options: GOL_04_OPTS,
-    selfTags: ['career-goal', 'relational-goal'],
+    options: G5_OPTS,
+    selfTags: ['relationships', 'career'],
+    fileIds: ['long-term-goals/main'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory ranking.',
-    note: (v) => `Priorities for the next ten years: ${ranked(GOL_04_OPTS, v, 3)}.`,
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: (v) => `Attention over the next ten years: ${ranked(G5_OPTS, v, 3)}.`,
   },
-  // ── Career Direction ───────────────────────────────────────
+  // ── Personal Projects (PPA dimensions) ─────────────────────
   {
-    id: 'CAR-01',
-    nodeId: 'goal-career',
-    text: 'Describe the work you would like to be doing in ten years.',
-    type: 'text',
-    selfTags: ['career-vision'],
+    id: 'PP1',
+    nodeId: 'projects',
+    text: 'Thinking of the project you described, rate each from 0 to 10.',
+    type: 'sliders',
+    sliders: PROJECT_APPRAISAL,
+    selfTags: ['project-appraisal'],
+    fileIds: ['long-term-goals/career'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open prompt, newly designed.',
-    note: (v) => `Work in ten years: “${String(v).trim()}”`,
+    source: 'adapted',
+    sourceNote: `Rating dimensions adapted from ${PPA}`,
+    note: (v) => `About my project: ${ratingList(PROJECT_APPRAISAL, v)}.`,
   },
   {
-    id: 'CAR-02',
-    nodeId: 'goal-career',
-    text: 'I would accept a significant move to pursue the right opportunity.',
-    type: 'likert',
-    selfTags: ['relocation'],
+    id: 'PP2',
+    nodeId: 'projects',
+    text: 'How much time with family or close people does this project ask you to give up?',
+    type: 'slider',
+    scale: ['None', 'A great deal'],
+    selfTags: ['project-cost'],
+    fileIds: ['long-term-goals/career'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
+    source: 'new',
+    sourceNote: 'Our own question.',
     askConfidence: true,
-    note: (v) =>
-      agree(
-        v,
-        'I would accept a significant move for the right opportunity.',
-        'I might accept a significant move, depending on the opportunity.',
-        'I would not want to make a significant move for work.',
-      ),
+    note: (v) => `Time with family or close people this project asks me to give up: ${v}/10.`,
+  },
+  // ── Aspirations (Aspiration Index, likelihood) ─────────────
+  {
+    id: 'AS1',
+    nodeId: 'aspirations',
+    text: 'How likely is each of these to happen for you?',
+    type: 'sliders',
+    sliders: ASPIRATIONS,
+    selfTags: ['aspiration-likelihood'],
+    fileIds: ['long-term-goals/main'],
+    stability: 'flexible',
+    source: 'adapted',
+    sourceNote: `Likelihood ratings, adapted from the ${AI}`,
+    note: (v) => `Likelihood: ${ratingList(ASPIRATIONS, v)}.`,
   },
   {
-    id: 'CAR-03',
-    nodeId: 'goal-career',
-    text: 'What matters most in your next role?',
+    id: 'AS2',
+    nodeId: 'aspirations',
+    text: 'If you had to give one of these up, which would it be?',
     type: 'choice',
-    options: [
-      { value: 'mastery', label: 'Mastery — getting very good at something' },
-      { value: 'impact', label: 'Impact — the work clearly helps people' },
-      { value: 'security', label: 'Security — stability and income' },
-      { value: 'recognition', label: 'Recognition' },
-      { value: 'flexibility', label: 'Flexibility — time and location' },
-    ],
-    selfTags: ['work-values'],
+    options: ASPIRATIONS,
+    selfTags: ['aspiration-tradeoff'],
+    fileIds: ['long-term-goals/main'],
     stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
-    note: (v) =>
-      `What matters most in my next role: ${({ mastery: 'mastery', impact: 'impact', security: 'security', recognition: 'recognition', flexibility: 'flexibility' } as Record<string, string>)[String(v)] ?? String(v)}.`,
-  },
-  // ── Relationships & Home ───────────────────────────────────
-  {
-    id: 'REL-01',
-    nodeId: 'goal-rel',
-    text: 'Describe what you would want your relationships with family to look like in ten years.',
-    type: 'text',
-    selfTags: ['relational-vision'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Open prompt, newly designed.',
-    note: (v) => `Family relationships in ten years: “${String(v).trim()}”`,
-  },
-  {
-    id: 'REL-02',
-    nodeId: 'goal-rel',
-    text: 'Living near my parents as they age is important to me.',
-    type: 'likert',
-    selfTags: ['proximity'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
-    askConfidence: true,
-    note: (v) =>
-      agree(
-        v,
-        'Living near my parents as they age matters to me.',
-        'Living near my parents as they age matters somewhat.',
-        'Living near my parents as they age is not a priority.',
-      ),
-  },
-  // ── Goals ↔ Values ─────────────────────────────────────────
-  {
-    id: 'GVL-01',
-    nodeId: 'goal-values',
-    text: 'Rank the values your long-term goal expresses most.',
-    type: 'rank',
-    options: GVL_01_OPTS,
-    selfTags: ['meaning'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed; value list loosely informed by Schwartz’s basic values, not a validated measure.',
-    note: (v) => `My goal mainly expresses ${ranked(GVL_01_OPTS, v)}.`,
-  },
-  {
-    id: 'GVL-02',
-    nodeId: 'goal-values',
-    text: 'If I achieved this goal but neglected my other values, it would still feel worth it.',
-    type: 'likert',
-    selfTags: ['value-alignment'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Newly designed exploratory item.',
-    askConfidence: true,
-    note: (v) =>
-      agree(
-        v,
-        'The goal would feel worth it even at the cost of other values.',
-        'Whether the goal is worth neglecting other values is unclear to me.',
-        'The goal would not feel worth it if I neglected my other values.',
-      ),
-  },
-  {
-    id: 'GVL-03',
-    nodeId: 'goal-values',
-    text: 'Where does this goal pull against something else you value?',
-    type: 'text',
-    selfTags: ['value-conflict'],
-    stability: 'flexible',
-    source: 'exploratory',
-    sourceNote: 'Deeper open question, newly designed.',
-    note: (v) => `Where the goal pulls against my values: “${String(v).trim()}”`,
+    source: 'new',
+    sourceNote: 'Our own question.',
+    note: (v) => `If I had to give one up: ${optionLabel(ASPIRATIONS, v).toLowerCase()}.`,
   },
 ];
 
@@ -768,18 +639,21 @@ export function formatAnswer(q: Question, v: AnswerValue): string {
   switch (q.type) {
     case 'likert': {
       const n = Number(v);
-      if (q.scale) return `${n}/5 (${n <= 2 ? q.scale[0] : n >= 4 ? q.scale[1] : 'neither'})`;
       return `${n}/5 — ${LIKERT_LABELS[n - 1] ?? ''}`;
     }
+    case 'slider':
+      return `${v}/10`;
     case 'choice':
       return optionLabel(q.options ?? [], v);
     case 'rank':
       return (Array.isArray(v) ? v : [])
         .map((x, i) => `${i + 1}. ${optionLabel(q.options ?? [], x)}`)
         .join('  ');
-    case 'goal': {
-      const g = v as GoalAnswer;
-      return `${g.text} — importance ${g.importance}/10`;
+    case 'sliders':
+      return ratingList(q.sliders ?? [], v);
+    case 'project': {
+      const p = v as ProjectAnswer;
+      return `${p.text} — ${ratingList(q.sliders ?? [], p.ratings)}`;
     }
     default:
       return String(v);

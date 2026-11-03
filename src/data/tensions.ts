@@ -9,7 +9,7 @@ export interface TensionSide {
 export interface TensionRule {
   id: string;
   title: string;
-  /** Phrased as a possibility, never as a proven contradiction. */
+  /** Phrased as a possibility, never as a contradiction. */
   summary: string;
   a: TensionSide;
   b: TensionSide;
@@ -18,54 +18,49 @@ export interface TensionRule {
 }
 
 const atLeast = (n: number) => (v: AnswerValue) => Number(v) >= n;
+const rating = (key: string, test: (n: number) => boolean) => (v: AnswerValue) => {
+  const r = v as Record<string, number> | undefined;
+  return !!r && typeof r[key] === 'number' && test(r[key]);
+};
 const rankedFirst = (opt: string) => (v: AnswerValue) => Array.isArray(v) && v[0] === opt;
-const rankedInBottom = (opt: string, k: number) => (v: AnswerValue) =>
-  Array.isArray(v) && v.indexOf(opt) >= v.length - k;
 
+// Fixed rules over answers. A rule only shows when both sides are backed by notes
+// that exist now, in two different files (see logic/tensions.ts).
 export const TENSION_RULES: TensionRule[] = [
   {
-    id: 'family-vs-relocation',
-    title: 'Family proximity and a goal that may require moving away',
+    id: 'family-vs-project',
+    title: 'What you owe family, and what your project costs in family time',
     summary:
-      'Your ethics notes describe caring for ageing parents as a strong obligation, while your goals notes describe a goal that will likely involve relocating or long periods away. These may pull in different directions — or you may already have a way to hold both.',
-    a: { qids: ['FAM-01', 'FAM-02'], test: (v) => Number(v) >= 4 || v === 'daily' || v === 'nearby' },
-    b: { qids: ['GOL-03', 'CAR-02'], test: atLeast(4) },
-    tags: ['eldercare', 'family-duty', 'relocation', 'proximity', 'tradeoff'],
+      'You say you owe your elders a lot, and also that your current project asks you to give up a lot of time with family. This may be fine — or worth a closer look.',
+    a: { qids: ['E4'], test: atLeast(7) },
+    b: { qids: ['PP2'], test: atLeast(6) },
+    tags: ['family-duty', 'project-cost', 'tradeoff'],
   },
   {
-    id: 'harm-vs-outcomes',
-    title: 'Never causing harm vs. accepting small harms for better outcomes',
+    id: 'career-first-vs-family-duty',
+    title: 'Career ranked first, with a strong sense of family duty',
     summary:
-      'One note treats harm to an innocent person as close to an absolute limit; another accepts small harms when they prevent larger ones. Many people hold both depending on the case — it may be worth noting where you draw the line.',
-    a: { qids: ['ETH-01', 'ETH-02'], test: atLeast(4) },
-    b: { qids: ['HRM-03'], test: atLeast(4) },
-    tags: ['idealism', 'harm-concern', 'outcomes'],
+      'Career comes first in your ten-year ranking, and you also say you owe your elders a lot. This can be a question of timing rather than a conflict.',
+    a: { qids: ['G5'], test: rankedFirst('career') },
+    b: { qids: ['E4'], test: atLeast(7) },
+    tags: ['career', 'relationships', 'family-duty'],
   },
   {
-    id: 'career-first-vs-family-good-life',
-    title: 'Career ranked first while family is described as central to a good life',
+    id: 'others-vs-community',
+    title: 'Responsibility to people outside your circle, and low weight on community',
     summary:
-      'Your ten-year priorities put career first, while your family-obligations notes describe meeting those obligations as part of what makes a life good. This could reflect a timing choice rather than a conflict.',
-    a: { qids: ['GOL-04'], test: rankedFirst('career') },
-    b: { qids: ['FAM-04', 'ETH-05'], test: (v) => Number(v) >= 4 || v === 'family' },
-    tags: ['career-goal', 'relational-goal', 'care', 'family-duty'],
+      'You rate your responsibility toward people outside your family or community as high, but rate community as one of your least important aspirations. These might measure different things.',
+    a: { qids: ['W3'], test: atLeast(7) },
+    b: { qids: ['G3'], test: rating('community', (n) => n <= 3) },
+    tags: ['obligations-to-others', 'aspirations'],
   },
   {
-    id: 'strangers-obligation-vs-weight',
-    title: 'Obligations to strangers vs. how much strangers weigh in decisions',
+    id: 'opportunity-vs-relationships',
+    title: 'Taking an opportunity away from family, while relationships rate highest',
     summary:
-      'Your worldview notes say we have real obligations to strangers, but your ranking places strangers near the bottom of whose wellbeing weighs in major decisions. These can be consistent (a minimum duty vs. a priority).',
-    a: { qids: ['WV-03', 'OTH-01'], test: atLeast(4) },
-    b: { qids: ['OTH-02'], test: rankedInBottom('strangers', 2) },
-    tags: ['others-obligation', 'circle-of-concern'],
-  },
-  {
-    id: 'agency-vs-luck',
-    title: 'Life shaped by your own effort vs. by luck and support',
-    summary:
-      'A worldview note says your life is mostly shaped by your own choices, while a personal-agency note credits luck, circumstance and support with a lot. Your views on this may be shifting.',
-    a: { qids: ['WV-01'], test: atLeast(4) },
-    b: { qids: ['AGY-02'], test: (v) => v === 'alot' || v === 'most' },
-    tags: ['agency', 'meaning'],
+      'You would most likely take an opportunity that means seeing family much less, and close relationships are among your most important aspirations.',
+    a: { qids: ['CA1'], test: (v) => v === 'take' },
+    b: { qids: ['G3'], test: rating('relationships', (n) => n >= 8) },
+    tags: ['tradeoff', 'aspirations', 'relationships'],
   },
 ];

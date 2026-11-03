@@ -2,11 +2,16 @@
 
 export type Branch = 'root' | 'ethics' | 'worldview' | 'goals';
 export type Stability = 'stable' | 'flexible';
-/** Where an item comes from — shown as a source label on every question. */
-export type SourceKind = 'research-informed' | 'adapted' | 'exploratory';
+/**
+ * Where an item comes from (matches the writeup's Source column):
+ *  - adapted: paraphrased from a published instrument, not administered in full
+ *  - informed: our own wording, informed by a research construct
+ *  - new: our own exploratory question
+ */
+export type SourceKind = 'adapted' | 'informed' | 'new';
 export type Provenance = 'human' | 'auto' | 'ai';
 
-export type QuestionType = 'likert' | 'choice' | 'rank' | 'text' | 'goal';
+export type QuestionType = 'likert' | 'choice' | 'rank' | 'text' | 'slider' | 'sliders' | 'project';
 
 export interface Option {
   value: string;
@@ -21,8 +26,12 @@ export interface Question {
   type: QuestionType;
   /** For choice / rank questions. */
   options?: Option[];
-  /** Override the default 5-point agreement anchors. */
+  /** For sliders / project questions: one 0–10 slider per option. */
+  sliders?: Option[];
+  /** End labels for agreement scales and 0–10 sliders. */
   scale?: [string, string];
+  /** Notes files this answer updates. */
+  fileIds: string[];
   /** Tags activated when this question is answered. */
   selfTags: string[];
   stability: Stability;
@@ -34,12 +43,13 @@ export interface Question {
   note: (value: AnswerValue) => string;
 }
 
-export interface GoalAnswer {
+/** Free text plus 0–10 ratings, e.g. a personal project with importance and control. */
+export interface ProjectAnswer {
   text: string;
-  importance: number; // 1–10
+  ratings: Record<string, number>;
 }
 
-export type AnswerValue = number | string | string[] | GoalAnswer;
+export type AnswerValue = number | string | string[] | Record<string, number> | ProjectAnswer;
 
 export interface Response {
   value: AnswerValue;

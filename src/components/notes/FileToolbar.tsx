@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { nodesForFile } from '../../store/model';
 import type { FileMode } from '../../types';
@@ -13,8 +13,8 @@ export function FileToolbar({ fileId }: { fileId: string }) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
   const modes: { id: FileMode; label: string }[] = [
-    { id: 'notes', label: file.proposal ? 'Notes · proposal pending' : 'Notes' },
-    { id: 'history', label: `Version history (${file.history.length})` },
+    { id: 'notes', label: file.proposal ? 'Notes · draft to review' : 'Notes' },
+    { id: 'history', label: `History (${file.history.length})` },
     { id: 'changes', label: 'Changes over time' },
   ];
 
@@ -32,9 +32,9 @@ export function FileToolbar({ fileId }: { fileId: string }) {
         className="btn"
         onClick={() => requestSummary(fileId)}
         disabled={!!file.proposal}
-        title={file.proposal ? 'Commit or cancel the pending proposal first' : 'Propose a shorter version; locked lines are kept'}
+        title={file.proposal ? 'Commit or cancel the current draft first' : 'Draft a shorter version. Your own and locked lines are kept.'}
       >
-        <Bot size={13} style={{ color: 'var(--ai)' }} /> Summarise
+        Summarise
       </button>
       <button
         className="icon-btn"

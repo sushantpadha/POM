@@ -15,7 +15,7 @@ import { MODEL } from '../../store/model';
 import { NODE_BY_ID } from '../../data/nodes';
 import { useDerived } from '../../hooks/useDerived';
 import { globalExploration } from '../../logic/graph';
-import { BRANCH_HEX, STATUS_LABEL } from '../branding';
+import { ACCENT_HEX, BRANCH_HEX, STATUS_LABEL } from '../branding';
 
 interface SimNode extends SimulationNodeDatum {
   id: string;
@@ -28,6 +28,13 @@ const RING = 140;
 function radiusFor(id: string): number {
   if (id === 'root') return 21;
   return MODEL.depth[id] === 1 ? 15 : 11;
+}
+
+/** Stable starting angle per node, so the map comes out the same on every visit. */
+function seedAngle(id: string): number {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return (h / 360) * Math.PI * 2;
 }
 
 function arcPath(r: number, frac: number): string {
@@ -142,12 +149,14 @@ export function GraphView() {
     const sim = simRef.current!;
     const map = nodesRef.current;
     const fresh: string[] = [];
-    const initial = map.size === 0;
+    // A first load, or a wholesale change such as switching profile, is laid out and fitted at once.
+    const initial = map.size === 0 || visibleIds.filter((id) => !map.has(id)).length > 2;
+    if (initial) map.clear();
     for (const id of visibleIds) {
       if (map.has(id)) continue;
       // New nodes spawn next to an already placed parent.
       const parent = MODEL.parents[id].map((p) => map.get(p)).find(Boolean);
-      const angle = Math.random() * Math.PI * 2;
+      const angle = seedAngle(id);
       const n: SimNode = {
         id,
         r: radiusFor(id),
@@ -196,6 +205,8 @@ export function GraphView() {
     const rect = svgRef.current?.getBoundingClientRect();
     const w = rect?.width || sizeRef.current.w;
     const h = rect?.height || sizeRef.current.h;
+    // Record the size we fitted to, so the resize observer doesn't shift the view a second time.
+    setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
     const k = Math.min(w / (maxX - minX), h / (maxY - minY), 1.35);
     setView({ k, x: w / 2 - ((minX + maxX) / 2) * k, y: h / 2 - ((minY + maxY) / 2) * k });
   };
@@ -296,7 +307,6 @@ export function GraphView() {
   }, [hover]);
 
   const exploration = globalExploration(MODEL, available);
-  const answeredCount = Object.keys(responses).length;
   const hoverNode = hover ? nodesRef.current.get(hover) : null;
 
   return (
@@ -323,7 +333,7 @@ export function GraphView() {
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 1 L 9 5 L 0 9 z" fill={k === 'active' ? '#6f7380' : '#3b3e47'} />
+              <path d="M 0 1 L 9 5 L 0 9 z" fill={k === 'active' ? '#5f5c57' : '#363431'} />
             </marker>
           ))}
         </defs>
@@ -350,7 +360,7 @@ export function GraphView() {
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={active ? (hl ? '#9da1ad' : '#555965') : '#33363e'}
+                stroke={active ? (hl ? '#9d988f' : '#4a4743') : '#302e2b'}
                 strokeWidth={hl ? 1.6 : 1.1}
                 strokeDasharray={active ? undefined : '3 4'}
                 markerEnd={`url(#arrow-${active ? 'active' : 'latent'})`}
@@ -394,11 +404,11 @@ export function GraphView() {
                       r={r + 2}
                     />
                   )}
-                  <circle className="halo" r={r + 5} stroke={selected ? '#e8e9ee' : color} />
+                  <circle className="halo" r={r + 5} stroke={selected ? '#dcd8d0' : color} />
                   {st === 'locked' ? (
                     <>
-                      <circle r={r} fill="#15161a" stroke="#4a4d57" strokeWidth={1.2} strokeDasharray="2.5 2.5" />
-                      <text textAnchor="middle" dy="0.35em" fontSize={r} fill="#5d606b" style={{ pointerEvents: 'none' }}>
+                      <circle r={r} fill="#171717" stroke="#45423e" strokeWidth={1.2} strokeDasharray="2.5 2.5" />
+                      <text textAnchor="middle" dy="0.35em" fontSize={r} fill="#5a5753" style={{ pointerEvents: 'none' }}>
                         ?
                       </text>
                     </>
@@ -410,24 +420,24 @@ export function GraphView() {
                       <path d={arcPath(r, frac)} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
                     </>
                   ) : (
-                    <circle r={r} fill="#16171b" stroke={color} strokeWidth={2} />
+                    <circle r={r} fill="#171717" stroke={color} strokeWidth={1.6} />
                   )}
                   {id === 'root' && (
-                    <text textAnchor="middle" dy="0.35em" fontSize={13} fontWeight={600} fill={st === 'answered' ? '#17181c' : color} style={{ pointerEvents: 'none' }}>
+                    <text textAnchor="middle" dy="0.35em" fontSize={13} fontWeight={600} fill={st === 'answered' ? '#1a1a1a' : color} style={{ pointerEvents: 'none' }}>
                       ?
                     </text>
                   )}
                   {newBelow && (
                     <g transform={`translate(${r * 0.78},${-r * 0.78})`}>
-                      <circle r={4.5} fill="#8ea4f5" stroke="#111215" strokeWidth={1.5} />
+                      <circle r={3.5} fill={ACCENT_HEX} stroke="#151515" strokeWidth={1.5} />
                     </g>
                   )}
                 </g>
                 <text className="label" textAnchor="middle" y={r + 16}>
-                  {st === 'locked' ? 'undiscovered' : node.name}
+                  {st === 'locked' ? '' : node.name}
                   {fresh && (
-                    <tspan fill="#8ea4f5" fontSize={9.5} fontWeight={600} dx={5}>
-                      NEW
+                    <tspan fill={ACCENT_HEX} fontSize={10} dx={5}>
+                      new
                     </tspan>
                   )}
                 </text>
@@ -447,23 +457,14 @@ export function GraphView() {
         >
           {status[hover] === 'locked' ? (
             <>
-              <b>Undiscovered</b>
-              <div>
-                Answer a question tagged{' '}
-                {NODE_BY_ID[hover].parentTags.map((t, i) => (
-                  <span key={t}>
-                    {i > 0 && ' or '}
-                    <span className="mono">#{t}</span>
-                  </span>
-                ))}{' '}
-                to discover it.
-              </div>
+              <b>Not opened yet</b>
+              <div>Opens when you answer a question tagged {NODE_BY_ID[hover].parentTags.map((t) => `#${t}`).join(' or ')}.</div>
             </>
           ) : (
             <>
               <b>{NODE_BY_ID[hover].name}</b> · {STATUS_LABEL[status[hover]]}
-              {hasNewDescendants(hover) && <div style={{ color: 'var(--accent)' }}>Has newly unlocked descendants</div>}
-              <div className="faint">Click to inspect · double-click to open questionnaire</div>
+              {hasNewDescendants(hover) && <div>Opened something new</div>}
+              <div className="faint">Double-click to answer</div>
             </>
           )}
         </div>
@@ -473,17 +474,12 @@ export function GraphView() {
         <div className="glass graph-hint">
           {!onboarded ? (
             <span>
-              Click <b>Who am I?</b> to begin onboarding
+              Start with <b>Who am I?</b>
             </span>
           ) : (
-            <>
-              <span>
-                <b>{answeredCount}</b> answers
-              </span>
-              <span>
-                Explored <b>+{exploration.nodes}</b> nodes · <b>+{exploration.questions}</b> questions
-              </span>
-            </>
+            <span title="Areas beyond the first three that your answers have opened">
+              <b>{exploration.nodes}</b> area{exploration.nodes === 1 ? '' : 's'} opened by your answers
+            </span>
           )}
         </div>
       </div>
@@ -508,31 +504,23 @@ export function GraphView() {
       <div className="graph-overlay bl">
         <div className="glass legend">
           <span className="legend-item">
-            <svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="#15161a" stroke="#4a4d57" strokeDasharray="2 2" /></svg>
-            Undiscovered
+            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#45423e" strokeDasharray="2 2" /></svg>
+            Not opened
           </span>
           <span className="legend-item">
-            <svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="#a1a3ad" strokeWidth="1.6" /></svg>
-            Available
+            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#9d988f" strokeWidth="1.4" /></svg>
+            Open
           </span>
           <span className="legend-item">
-            <svg width="14" height="14">
-              <circle cx="7" cy="7" r="5" fill="rgba(161,163,173,0.12)" stroke="rgba(161,163,173,0.35)" strokeWidth="1.6" />
-              <path d={arcPath(5, 0.4)} transform="translate(7,7)" fill="none" stroke="#a1a3ad" strokeWidth="2" />
+            <svg width="12" height="12">
+              <circle cx="6" cy="6" r="4.5" fill="none" stroke="rgba(157,152,143,0.35)" strokeWidth="1.4" />
+              <path d={arcPath(4.5, 0.4)} transform="translate(6,6)" fill="none" stroke="#9d988f" strokeWidth="1.8" />
             </svg>
             In progress
           </span>
           <span className="legend-item">
-            <svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="#a1a3ad" /></svg>
+            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#9d988f" /></svg>
             Answered
-          </span>
-          <span className="legend-item">
-            <svg width="14" height="14"><circle cx="7" cy="7" r="3.5" fill="#8ea4f5" /></svg>
-            New descendants
-          </span>
-          <span className="legend-item">
-            <svg width="22" height="14"><line x1="1" y1="7" x2="21" y2="7" stroke="#555965" strokeDasharray="3 3" /></svg>
-            Not yet activated
           </span>
         </div>
       </div>

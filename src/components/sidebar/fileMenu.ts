@@ -3,12 +3,16 @@ import { useStore } from '../../store/store';
 
 export type MenuItem = { label: string; Icon: LucideIcon; run: () => void; danger?: boolean } | 'sep';
 
-/** Simulated summarisation, shared by the toolbar, the explorer menu and the file panel. */
+/** Summarise (pre-written or rule-based here), shared by the toolbar, the explorer menu and the file panel. */
 export function requestSummary(fileId: string) {
   const s = useStore.getState();
   s.openFile(fileId, { mode: 'notes' });
   if (!s.proposeSummary(fileId)) {
-    s.toast({ text: 'Nothing to summarise — the file needs at least two unlocked lines.' });
+    s.toast({
+      text: s.files[fileId].name === 'main'
+        ? 'Nothing to summarise yet: the topic files in this folder are empty.'
+        : 'Nothing to summarise: summaries only shorten generated lines, and this file has fewer than two.',
+    });
   }
 }
 
@@ -23,7 +27,7 @@ export function fileMenuItems(fileId: string, nodeIds: string[]): MenuItem[] {
       ? [{ label: 'Show on graph', Icon: Network, run: () => { s.setActiveTab(0); s.selectNode(nodeIds[0]); } }]
       : []),
     'sep',
-    { label: 'Summarise (AI, simulated)', Icon: Bot, run: () => requestSummary(fileId) },
+    { label: 'Summarise', Icon: Bot, run: () => requestSummary(fileId) },
     'sep',
     { label: 'Reset topic…', Icon: RotateCcw, run: () => s.setDialog({ kind: 'reset', fileId }) },
     { label: 'Erase topic data…', Icon: Eraser, run: () => s.setDialog({ kind: 'erase', fileId }), danger: true },

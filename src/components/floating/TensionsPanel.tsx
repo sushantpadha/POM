@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Check, Eye, MessageSquarePlus, RotateCw, Undo2, X } from 'lucide-react';
+import { ArrowRight, Check, Eye } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { MODEL } from '../../store/model';
 import { NODE_BY_ID } from '../../data/nodes';
@@ -49,10 +49,6 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
 
   return (
     <div className={`card ${focus ? 'focus' : ''} ${dismissed ? 'dismissed' : ''}`} data-tension={t.rule.id}>
-      <div className="row" style={{ marginBottom: 6 }}>
-        <span className="chip" style={{ color: 'var(--chg)' }}>Potential tension</span>
-        <span className="faint" style={{ fontSize: 11.5 }}>{t.fileIds.join(' ↔ ')}</span>
-      </div>
       <h4>{t.rule.title}</h4>
       <p>{t.rule.summary}</p>
       {!dismissed && (
@@ -63,31 +59,32 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
             {dedupe(t.b).map((ev) => <EvidenceItem key={ev.entry.id} ev={ev} />)}
           </div>
 
-          <div style={{ marginTop: 10 }}>
-            <div className="faint" style={{ fontSize: 11.5, marginBottom: 5 }}>
-              Related tags {t.rule.tags.map((tg) => <span key={tg} className="mono">#{tg} </span>)}— revisit:
-            </div>
-            <div className="row wrap" style={{ gap: 5 }}>
-              {retakeNodes.map((id) => (
-                <button key={id} className="chip link" onClick={() => openQuestionnaire(id)}>
-                  <RotateCw size={10} /> {NODE_BY_ID[id].name}
-                </button>
+          {retakeNodes.length > 0 && (
+            <div className="revisit">
+              <span className="faint">Revisit:</span>
+              {retakeNodes.map((id, i) => (
+                <span key={id}>
+                  {i > 0 && <span className="faint">, </span>}
+                  <a onClick={() => openQuestionnaire(id)} title={`Questions tagged ${t.rule.tags.map((tg) => `#${tg}`).join(' ')}`}>
+                    {NODE_BY_ID[id].name}
+                  </a>
+                </span>
               ))}
             </div>
-          </div>
+          )}
 
           {contextEntry && (
             <div className="callout" style={{ marginTop: 10, cursor: 'pointer' }} onClick={() => openFile(context!.fileId, { entryId: contextEntry.id })}>
               <Check size={14} style={{ color: 'var(--human)' }} />
               <span>
-                <b>Your context</b> ({context!.fileId}): {contextEntry.text}
+                <b>Your note:</b> {contextEntry.text}
               </span>
             </div>
           )}
 
           {writing ? (
             <div style={{ marginTop: 10 }}>
-              <textarea className="input" rows={3} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. why both can be true for you, or what has changed since." />
+              <textarea className="input" rows={3} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="Why both can be true, or what has changed" />
               <div className="row" style={{ marginTop: 6 }}>
                 <span className="faint" style={{ fontSize: 11.5 }}>Add to</span>
                 <select className="input" style={{ width: 'auto', padding: '3px 6px', fontSize: 12 }} value={target} onChange={(e) => setTarget(e.target.value)}>
@@ -104,20 +101,20 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
                     setText('');
                   }}
                 >
-                  Save as my note
+                  Save note
                 </button>
               </div>
             </div>
           ) : (
             <div className="card-actions">
               <button className="btn sm" onClick={() => openFile(t.a[0].fileId, { entryId: t.a[0].entry.id })}>
-                <Eye size={12} /> Inspect notes
+                Open notes
               </button>
               <button className="btn sm" onClick={() => setWriting(true)}>
-                <MessageSquarePlus size={12} /> {contextEntry ? 'Add more context' : 'Add context'}
+                {contextEntry ? 'Add more context' : 'Add context'}
               </button>
               <button className="btn sm ghost" onClick={() => dismiss(t.rule.id)}>
-                <X size={12} /> Dismiss
+                Dismiss
               </button>
             </div>
           )}
@@ -126,7 +123,7 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
       {dismissed && (
         <div className="card-actions">
           <button className="btn sm ghost" onClick={() => restore(t.rule.id)}>
-            <Undo2 size={12} /> Restore
+            Restore
           </button>
         </div>
       )}
@@ -143,37 +140,28 @@ export function TensionsPanel() {
 
   const node = focusNode ? NODE_BY_ID[focusNode] : null;
   const nodeTags = node ? new Set(MODEL.questionsByNode[node.id].flatMap((q) => q.selfTags)) : null;
+  const nodeFiles = node ? new Set(MODEL.questionsByNode[node.id].flatMap((q) => q.fileIds)) : null;
   const relevant = (t: Tension) =>
-    !node || (node.fileId && t.fileIds.includes(node.fileId)) || t.rule.tags.some((tg) => nodeTags!.has(tg));
+    !node || t.fileIds.some((f) => nodeFiles!.has(f)) || t.rule.tags.some((tg) => nodeTags!.has(tg));
   const list = (showDismissed ? tensions : openTensions).filter(relevant);
 
   return (
     <FloatShell
       icon="!"
       title="Potential tensions"
-      sub="Across the current versions of related files"
-      foot={
-        <div className="disclaimer">
-          <span>
-            Flagged by simple rules over your current notes (simulated AI). A potential tension is a prompt to reflect, not
-            a proven contradiction — many apparent tensions have good explanations.
-          </span>
-        </div>
-      }
+      sub="Found by fixed rules that compare your current notes across files. Not a judgement — often both can be true."
+
     >
       {node && (
         <div className="row">
-          <span className="chip">Related to {node.name}</span>
+          <span className="muted">Related to {node.name}</span>
           <button className="btn sm ghost" onClick={() => setFloating('tensions', null)}>
             Show all <ArrowRight size={12} />
           </button>
         </div>
       )}
       {list.length === 0 && (
-        <div className="empty" style={{ padding: 20 }}>
-          <h3>No potential tensions{node ? ' for this node' : ''}</h3>
-          <p>Tensions are checked whenever your notes change.</p>
-        </div>
+        <p className="muted" style={{ margin: 0 }}>Nothing found{node ? ' for this area' : ''}.</p>
       )}
       {list.map((t) => (
         <TensionCard key={t.rule.id} t={t} focus={!!node} />

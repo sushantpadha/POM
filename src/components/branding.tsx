@@ -1,5 +1,5 @@
 import { Bot, Hand, Pencil } from 'lucide-react';
-import type { Branch, Provenance } from '../types';
+import type { Branch, Provenance, SourceKind } from '../types';
 import type { NodeStatus } from '../logic/graph';
 
 export const BRANCH_COLOR: Record<Branch, string> = {
@@ -9,13 +9,15 @@ export const BRANCH_COLOR: Record<Branch, string> = {
   goals: 'var(--goals)',
 };
 
-/** Hex versions for SVG fills that need alpha blending. */
+/** Hex versions for SVG fills that need alpha blending. Keep in sync with styles.css. */
 export const BRANCH_HEX: Record<Branch, string> = {
-  root: '#d8d9de',
-  ethics: '#e0a95e',
-  worldview: '#5ebcb2',
-  goals: '#b39af2',
+  root: '#cfcac1',
+  ethics: '#c4a882',
+  worldview: '#8eaaa3',
+  goals: '#a89db6',
 };
+
+export const ACCENT_HEX = '#a7b8a4';
 
 export const BRANCH_LABEL: Record<Branch, string> = {
   root: 'Start',
@@ -25,32 +27,48 @@ export const BRANCH_LABEL: Record<Branch, string> = {
 };
 
 export const STATUS_LABEL: Record<NodeStatus, string> = {
-  locked: 'Undiscovered',
-  available: 'Available',
+  locked: 'Not opened yet',
+  available: 'Open',
   'in-progress': 'In progress',
   answered: 'Answered',
 };
 
 export const PROVENANCE: Record<Provenance, { label: string; Icon: typeof Hand }> = {
-  human: { label: 'Human-written', Icon: Hand },
-  auto: { label: 'Automatically generated', Icon: Pencil },
-  ai: { label: 'AI-summarized', Icon: Bot },
+  human: { label: 'Written by you', Icon: Hand },
+  auto: { label: 'Generated from one of your answers', Icon: Pencil },
+  ai: { label: 'Summary (AI in a full version; pre-written or rule-based here)', Icon: Bot },
+};
+
+export const SOURCE_LABEL: Record<SourceKind, string> = {
+  adapted: 'Adapted',
+  informed: 'New · research-informed',
+  new: 'New',
 };
 
 export function ProvenanceIcon({ p, size = 13 }: { p: Provenance; size?: number }) {
   const { Icon, label } = PROVENANCE[p];
   return (
     <span className={`prov ${p}`} title={label} aria-label={label}>
-      <Icon size={size} strokeWidth={1.8} />
+      <Icon size={size} strokeWidth={1.7} />
     </span>
+  );
+}
+
+export function StatusDot({ status, branch }: { status: NodeStatus; branch: Branch }) {
+  return (
+    <span
+      className={`status-dot ${status}`}
+      style={{ color: status === 'locked' ? 'var(--text-faint)' : BRANCH_COLOR[branch], flex: 'none' }}
+      title={STATUS_LABEL[status]}
+    />
   );
 }
 
 export function StatusPill({ status, branch }: { status: NodeStatus; branch: Branch }) {
   return (
-    <span className="status-pill" style={{ color: status === 'locked' ? 'var(--text-faint)' : BRANCH_COLOR[branch] }}>
-      <span className={`status-dot ${status}`} />
-      <span style={{ color: 'var(--text-dim)' }}>{STATUS_LABEL[status]}</span>
+    <span className="status-pill">
+      <StatusDot status={status} branch={branch} />
+      <span>{STATUS_LABEL[status]}</span>
     </span>
   );
 }
