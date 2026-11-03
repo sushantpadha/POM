@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Info, Network, RefreshCcw, Sprout, Upload, UserRound } from 'lucide-react';
+import { Download, Info, RefreshCcw, Sprout, Upload, UserRound } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { Menu } from '../sidebar/Sidebar';
 import { downloadExport } from './transfer';
@@ -23,9 +23,7 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="brand-mark">
-          <Network size={12} />
-        </span>
+        <img className="brand-mark" src={`${import.meta.env.BASE_URL}pom-icon-small.svg`} alt="" width={22} height={22} />
         <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab(0)}>Personal Operating Model</span>
         <small>prototype</small>
       </div>

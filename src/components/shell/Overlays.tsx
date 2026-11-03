@@ -12,6 +12,7 @@ export function DemoChooser() {
       <div className="dialog chooser" role="dialog" aria-modal="true" aria-labelledby="chooser-title">
         <div className="dialog-head">
           <h2 id="chooser-title">
+            <img src={`${import.meta.env.BASE_URL}pom-icon.svg`} alt="" width={32} height={32} style={{ borderRadius: 8 }} />
             Personal Operating Model
           </h2>
         </div>

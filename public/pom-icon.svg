@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d201d"/><stop offset="1" stop-color="#121412"/></linearGradient>
+    <linearGradient id="leafG" x1="0" y1="120" x2="0" y2="300" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#c3d2bf"/><stop offset="1" stop-color="#97ab94"/></linearGradient>
+    <linearGradient id="fadeG" x1="0" y1="300" x2="0" y2="470" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.42"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="fade" maskUnits="userSpaceOnUse" x="0" y="300" width="512" height="212">
+      <rect x="0" y="300" width="512" height="212" fill="url(#fadeG)"/></mask>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <g transform="translate(256 256) scale(1.1) translate(-256 -286)">
+    
+    <path d="M256 300 C256 266 254 236 257 208" stroke="url(#leafG)" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <path d="M255.0 242.0 C241.2 209.0 197.0 195.5 173.0 196.0 C181.2 223.7 215.7 254.4 255.0 242.0Z" fill="url(#leafG)"/>
+    <path d="M257.0 204.0 C305.6 209.2 342.7 165.6 349.0 132.0 C319.8 136.3 268.6 161.9 257.0 204.0Z" fill="url(#leafG)"/>
+    <path d="M152 307 H360" stroke="#dcd8d0" stroke-opacity="0.38" stroke-width="7" stroke-linecap="round"/>
+    <path d="M204 330 H308" stroke="#dcd8d0" stroke-opacity="0.16" stroke-width="6" stroke-linecap="round"/>
+    <g mask="url(#fade)"><g transform="translate(0 614) scale(1 -1) translate(0 300) scale(1 0.86) translate(0 -300)">
+    <path d="M256 300 C256 266 254 236 257 208" stroke="url(#leafG)" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <path d="M255.0 242.0 C241.2 209.0 197.0 195.5 173.0 196.0 C181.2 223.7 215.7 254.4 255.0 242.0Z" fill="url(#leafG)"/>
+    <path d="M257.0 204.0 C305.6 209.2 342.7 165.6 349.0 132.0 C319.8 136.3 268.6 161.9 257.0 204.0Z" fill="url(#leafG)"/></g></g>
+  </g>
+</svg>
