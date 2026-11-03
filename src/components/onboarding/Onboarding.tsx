@@ -1,121 +1,164 @@
 import { useState } from 'react';
 import { useStore } from '../../store/store';
+import { fmtDateTime } from '../../logic/format';
 
-/** Four calm steps. Nothing else is shown, and nothing opens, until consent is given. */
+const STEPS = ['About', 'Your data', 'Question types', 'Consent'];
+
 export function Onboarding() {
+  const onboardedAt = useStore((s) => s.onboardedAt);
   const completeOnboarding = useStore((s) => s.completeOnboarding);
-  const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
-  const [ai, setAi] = useState<boolean | null>(null);
-  const [agree, setAgree] = useState(false);
-
-  const canContinue = step === 0 ? !!name.trim() : step === 1 ? ai !== null : true;
+  const storedName = useStore((s) => s.userName);
+  const setUserName = useStore((s) => s.setUserName);
+  const [name, setName] = useState(storedName ?? '');
+  const [step, setStep] = useState(onboardedAt ? 3 : 0);
+  const [consent, setConsent] = useState(!!onboardedAt);
+  const [understands, setUnderstands] = useState(!!onboardedAt);
 
   return (
-    <div className="page onb">
-      <div className="steps" aria-hidden>
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} className={i <= step ? 'on' : ''} />
-        ))}
-      </div>
-
-      {step === 0 && (
-        <>
-          <h1>Who am I?</h1>
-          <p className="lead">A journal for putting your ethics, your beliefs and your long-term goals into words.</p>
-          <p className="muted" style={{ marginBottom: 28 }}>No score, label or diagnosis.</p>
-          <label className="muted small" htmlFor="name">
-            What should we call you?
-          </label>
-          <input id="name" className="input" style={{ maxWidth: 320, marginTop: 6, display: 'block' }} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} autoFocus />
-        </>
-      )}
-
-      {step === 1 && (
-        <>
-          <h1>Your data and AI</h1>
-          <ul>
-            <li>Your answers and notes stay in this browser. There is no account or server.</li>
-            <li>You can reset any topic, erase it completely, or export everything to a file.</li>
-            <li>
-              AI is optional. If you turn it on, you can ask questions about your notes and draft summaries. In this
-              prototype nothing is sent anywhere: answers are pre-written or made by simple rules.
-            </li>
-          </ul>
-          <div className="choice-cards" role="radiogroup">
-            <button role="radio" aria-checked={ai === true} style={ai === true ? { borderColor: 'var(--accent)' } : undefined} onClick={() => setAi(true)}>
-              <b>AI on</b>
-              <span>Ask about your notes and draft summaries. AI text is always labelled.</span>
+    <div className="doc-scroll">
+      <div className="onb">
+        <div className="onb-steps" role="tablist">
+          {STEPS.map((s, i) => (
+            <button
+              key={s}
+              role="tab"
+              aria-selected={i === step}
+              className={`onb-step ${i < step ? 'done' : ''} ${i === step ? 'current' : ''}`}
+              onClick={() => setStep(i)}
+            >
+              <span className="bar" />
+              {s}
             </button>
-            <button role="radio" aria-checked={ai === false} style={ai === false ? { borderColor: 'var(--accent)' } : undefined} onClick={() => setAi(false)}>
-              <b>AI off</b>
-              <span>Only your own words and notes made from your answers. You can change this later.</span>
-            </button>
-          </div>
-        </>
-      )}
+          ))}
+        </div>
 
-      {step === 2 && (
-        <>
-          <h1>Two kinds of question</h1>
-          <div className="cards" style={{ marginTop: 24 }}>
-            <div>
-              <h3>Stable</h3>
-              <p>Can harming an innocent person ever be justified? A change here is worth noticing.</p>
+        {step === 0 && (
+          <>
+            <h1>Who am I?</h1>
+            <p className="lead">
+              This is a place to put your ethics, your worldview and your long-term goals into words you can read, edit and
+              question.
+            </p>
+            <label className="name-field">
+              <span>What should we call you?</span>
+              <div className="row">
+                <input
+                  className="input"
+                  value={name}
+                  maxLength={60}
+                  placeholder="First name or nickname"
+                  onChange={(e) => setName(e.target.value)}
+                  aria-label="Your name"
+                  autoFocus={!onboardedAt}
+                />
+                {onboardedAt && (
+                  <button className="btn" disabled={!name.trim() || name.trim() === storedName} onClick={() => setUserName(name)}>
+                    Save
+                  </button>
+                )}
+              </div>
+              <small className="faint">Only used to address you. There is no account or password.</small>
+            </label>
+            <ul className="onb-points">
+              <li>You answer short sets of questions, in any order. Every question can be skipped.</li>
+              <li>Answers open further questions on a map. There is no score and no finish line.</li>
+              <li>Your answers become notes that you can edit, lock, or delete.</li>
+              <li>
+                This is an exploratory prototype, not a validated test. It gives no diagnosis, score or personality type.
+              </li>
+            </ul>
+          </>
+        )}
+
+        {step === 1 && (
+          <>
+            <h1>Your data</h1>
+            <ul className="onb-points">
+              <li>
+                <b>What is stored:</b> your answers (with dates and how sure you were), the notes made from them, notes you
+                write, and up to five earlier versions of each notes file. Answers about family, beliefs and goals can be
+                personal.
+              </li>
+              <li>
+                <b>Where:</b> only in this browser. There is no server and no encryption, so anyone using this browser
+                profile could read it. You can export it to a file or erase it at any time.
+              </li>
+              <li>
+                <b>AI:</b> this prototype does not send anything to an AI service. Summaries, tensions and answers in “Ask
+                your model” are pre-written or made by simple rules. In a full version an AI would do this, and its text
+                would stay labelled and separate from your own words. It can be wrong.
+              </li>
+            </ul>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <h1>Stable and flexible questions</h1>
+            <p className="lead">Each question says which kind it is.</p>
+            <div className="onb-compare">
+              <div className="onb-card">
+                <h3>Stable</h3>
+                <p>Lasting principles and beliefs, such as whether harm to others can be justified. Expected to change slowly.</p>
+              </div>
+              <div className="onb-card">
+                <h3>Flexible</h3>
+                <p>Current circumstances and priorities, such as a project you are working on. These are suggested for retakes.</p>
+              </div>
             </div>
-            <div>
-              <h3>Flexible</h3>
-              <p>Does a goal require moving abroad? These answers can be revisited over time.</p>
-            </div>
-          </div>
-          <p className="muted">Skip any question, edit or lock any note, reset a topic, or erase it completely.</p>
-        </>
-      )}
+            <p className="muted">
+              Each question also says where it comes from: <b>Adapted</b> means paraphrased from a published questionnaire;{' '}
+              <b>New</b> means our own.
+            </p>
+          </>
+        )}
 
-      {step === 3 && (
-        <>
-          <h1>Before you start</h1>
-          <ul>
-            <li>Every question is optional.</li>
-            <li>Your answers and notes are stored in this browser and used only to make your notes.</li>
-            <li>You would be asked again before anything else, such as sending text to an AI service.</li>
-          </ul>
-          <p className="small">
-            <button className="link" onClick={() => setStep(1)}>
-              Read about your data again
-            </button>
-          </p>
-          <label className="toggle">
-            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-            <span>I agree, and I understand this is not a clinical tool.</span>
-          </label>
-        </>
-      )}
+        {step === 3 && (
+          <>
+            <h1>Consent</h1>
+            <p className="lead">
+              This covers storing your answers and notes in this browser and making notes from them. You would be asked again
+              before anything else, such as sending data to an AI service.
+            </p>
+            {onboardedAt && (
+              <p className="muted">
+                You agreed on {fmtDateTime(onboardedAt)}. You can erase any topic from its file menu.
+              </p>
+            )}
+            <label className="check">
+              <input type="checkbox" checked={consent} disabled={!!onboardedAt} onChange={(e) => setConsent(e.target.checked)} />
+              <span>I agree to my answers and notes being stored in this browser and used to make notes.</span>
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={understands} disabled={!!onboardedAt} onChange={(e) => setUnderstands(e.target.checked)} />
+              <span>I understand this is not a clinical tool, and that interpretations can be wrong.</span>
+            </label>
+          </>
+        )}
 
-      <div className="onb-nav">
-        {step === 0 ? (
-          <button className="link small" style={{ color: 'var(--faint)' }} onClick={() => useStore.setState({ profile: null })}>
-            Leave
-          </button>
-        ) : (
-          <button className="link small" style={{ color: 'var(--faint)' }} onClick={() => setStep(step - 1)}>
+        <div className="onb-nav">
+          <button className="btn ghost" disabled={step === 0} onClick={() => setStep(step - 1)}>
             Back
           </button>
-        )}
-        {step < 3 ? (
-          <button className="btn primary" disabled={!canContinue} onClick={() => setStep(step + 1)}>
-            Continue
-          </button>
-        ) : (
-          <div className="row">
-            <button className="btn" onClick={() => useStore.setState({ profile: null })}>
-              Leave
+          {step < 3 ? (
+            <button className="btn primary" onClick={() => setStep(step + 1)}>
+              Continue
             </button>
-            <button className="btn primary" disabled={!agree} onClick={() => completeOnboarding(name, !!ai)}>
-              Agree
-            </button>
-          </div>
-        )}
+          ) : onboardedAt ? (
+            <span className="faint" style={{ fontSize: 12.5 }}>Done</span>
+          ) : (
+            <div className="row">
+              {!name.trim() && (
+                <button className="btn ghost" onClick={() => setStep(0)}>
+                  Add your name first
+                </button>
+              )}
+              <button className="btn primary" disabled={!consent || !understands || !name.trim()} onClick={() => completeOnboarding(name)}>
+                Agree and continue
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

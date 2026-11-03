@@ -26,18 +26,17 @@ export const BRANCH_LABEL: Record<Branch, string> = {
   goals: 'Long-term Goals',
 };
 
-/** Plain state words, so the map needs no legend. Hidden topics are never drawn. */
 export const STATUS_LABEL: Record<NodeStatus, string> = {
-  locked: 'Hidden',
-  available: 'New',
+  locked: 'Not opened yet',
+  available: 'Open',
   'in-progress': 'In progress',
-  answered: 'Reflected on',
+  answered: 'Answered',
 };
 
 export const PROVENANCE: Record<Provenance, { label: string; Icon: typeof Hand }> = {
   human: { label: 'Written by you', Icon: Hand },
-  auto: { label: 'From your answer', Icon: Pencil },
-  ai: { label: 'AI summary', Icon: Bot },
+  auto: { label: 'Generated from one of your answers', Icon: Pencil },
+  ai: { label: 'Summary (AI in a full version; pre-written or rule-based here)', Icon: Bot },
 };
 
 export const SOURCE_LABEL: Record<SourceKind, string> = {
@@ -55,3 +54,21 @@ export function ProvenanceIcon({ p, size = 13 }: { p: Provenance; size?: number 
   );
 }
 
+export function StatusDot({ status, branch }: { status: NodeStatus; branch: Branch }) {
+  return (
+    <span
+      className={`status-dot ${status}`}
+      style={{ color: status === 'locked' ? 'var(--text-faint)' : BRANCH_COLOR[branch], flex: 'none' }}
+      title={STATUS_LABEL[status]}
+    />
+  );
+}
+
+export function StatusPill({ status, branch }: { status: NodeStatus; branch: Branch }) {
+  return (
+    <span className="status-pill">
+      <StatusDot status={status} branch={branch} />
+      <span>{STATUS_LABEL[status]}</span>
+    </span>
+  );
+}

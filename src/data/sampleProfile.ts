@@ -38,14 +38,14 @@ const edited = (x: Entry, text: string, date: string): Entry => ({ ...x, text, u
 
 // ── ethics/main ───────────────────────────────────────────────
 const em1 = e('em1', 'h', 'Summary', 'ai', '2026-03-20');
-const em2 = e('em2', 'li', 'Leans towards avoiding harm: an action that could hurt an innocent person is ruled out, even a small risk.', 'ai', '2026-03-20', { src: 'MP1' });
+const em2 = e('em2', 'li', 'Leans towards avoiding harm: judges actions by how little harm they cause, and treats risking harm to others as close to unacceptable.', 'ai', '2026-03-20', { src: 'MP1' });
 const em3 = e('em3', 'li', 'Undecided on whether ethics depends on culture, but thinks whether a lie is wrong depends on the circumstances.', 'ai', '2026-03-20', { src: 'E2' });
 const em4 = e('em4', 'li', 'Family is where my principles get tested most — see [[ethics/family-obligations]].', 'human', '2026-04-10');
 const em5 = e('em5', 'li', 'Open question: I avoid harm almost absolutely, yet I’d break a promise to prevent it. Is that consistent?', 'human', '2026-09-20');
 
 // ── ethics/moral-principles ───────────────────────────────────
 const mp1 = e('mp1', 'h', 'How I judge actions', 'auto', '2026-03-14');
-const mp2 = e('mp2', 'li', 'If an action could harm an innocent person, I think it should not be done.', 'auto', '2026-03-14', { src: 'E1' });
+const mp2 = e('mp2', 'li', 'I judge an action as moral when it causes the least harm overall.', 'auto', '2026-03-14', { src: 'E1' });
 const mp3 = e('mp3', 'li', 'I am undecided on whether ethics depends on the situation and culture.', 'auto', '2026-03-14', { src: 'E2' });
 const mp4 = e('mp4', 'quote', 'Promise vs. minor harm: “Probably yes, if the harm is real and the promise is small. I’d tell the person afterwards why I broke it.”', 'auto', '2026-03-14', { src: 'E3' });
 const mp5 = e('mp5', 'li', 'When I judge an action I look first at its consequences, then the intentions behind it.', 'auto', '2026-03-14', { src: 'E5' });

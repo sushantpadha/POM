@@ -17,10 +17,6 @@ export interface PortableData {
   dismissedTensions: string[];
   tensionContext: Record<string, { fileId: string; entryId: string }>;
   deferred: Record<string, string>;
-  /** The user's choice in onboarding: whether AI-style features are shown. */
-  aiEnabled: boolean;
-  /** Milestone pauses already shown (e.g. 10, 20). */
-  milestonesAck: number[];
 }
 
 export interface ExportFile {
@@ -122,8 +118,6 @@ export function parseExport(text: string): ParseResult {
     dismissedTensions: (d.dismissedTensions as string[] | undefined) ?? [],
     tensionContext: isObj(d.tensionContext) ? (d.tensionContext as PortableData['tensionContext']) : {},
     deferred: isObj(d.deferred) ? (d.deferred as Record<string, string>) : {},
-    aiEnabled: d.aiEnabled === true,
-    milestonesAck: Array.isArray(d.milestonesAck) ? d.milestonesAck.filter((n): n is number => typeof n === 'number') : [],
   };
   return {
     ok: true,

@@ -1,15 +1,19 @@
 // End-to-end journey check (headless Chromium via Playwright).
 // Usage: npm run dev, then: node scripts/e2e-journey.cjs  (requires the 'playwright' package)
-// Set SHOTS=<dir> to save screenshots.
 const BASE = process.env.BASE_URL || 'http://localhost:5173';
 const { chromium } = require('playwright');
 const assert = (c, m) => { if (!c) throw new Error('ASSERT: ' + m); console.log('ok -', m); };
-const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${process.env.SHOTS}/${name}.png`, fullPage: true });
-const nav = (page, label) => page.click(`.nav button:has-text("${label}")`);
+const clickNode = async (page, id) => {
+  await page.click('button[title="Fit to screen"]');
+  await page.waitForTimeout(150);
+  await page.click(`[data-node="${id}"] circle >> nth=-1`, { force: true });
+};
+const nodeClass = (page, id) => page.getAttribute(`[data-node="${id}"]`, 'class');
+const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${process.env.SHOTS}/${name}.png` });
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && !/fonts\.g/.test(m.text()) && errors.push(m.text()));
@@ -17,165 +21,157 @@ const nav = (page, label) => page.click(`.nav button:has-text("${label}")`);
   await page.goto(BASE);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
-  await shot(page, '01-welcome');
+  await shot(page, '01-chooser');
 
-  // ── Onboarding: one page per step, nothing behind it ──
-  await page.click('text=Start your own');
-  assert(!(await page.isVisible('.nav')), 'no navigation before consent');
-  assert(await page.isDisabled('.onb-nav .btn.primary'), 'a name is needed to continue');
-  await page.fill('#name', 'Sam');
-  await page.click('.onb-nav .btn.primary');
-  assert(await page.isDisabled('.onb-nav .btn.primary'), 'AI must be chosen on or off');
-  await page.click('.choice-cards button:has-text("AI on")');
-  await shot(page, '02-data-and-ai');
-  await page.click('.onb-nav .btn.primary');
-  await page.click('.onb-nav .btn.primary');
-  assert(await page.isDisabled('button:has-text("Agree")'), 'agree needs the checkbox');
-  await page.click('text=I agree, and I understand');
-  await page.click('button:has-text("Agree")');
-  assert(await page.isVisible('.nav'), 'journal opens after consent');
-  assert(await page.isVisible('.area-head:has-text("Ethics")') && await page.isVisible('.area-head:has-text("Long-term Goals")'), 'three starting points');
-  assert((await page.$$('.next-step')).length === 1, 'one next step');
-  await shot(page, '03-journal-empty');
+  // ── Fresh journey ──
+  await page.click('text=Start fresh');
+  assert(await page.$$eval('[data-node]', (n) => n.length) === 4, 'only the root and three closed branches before consent');
+  await page.click('.context-panel button:has-text("Start")');
+  await page.fill('.name-field input', 'Sam');
+  await shot(page, '02-onboarding');
+  for (let i = 0; i < 3; i++) await page.click('.onb-nav button.primary');
+  assert(await page.isDisabled('text=Agree and continue'), 'cannot continue without consent');
+  await page.click('text=I agree to my answers');
+  await page.click('text=I understand this is not a clinical tool');
+  await page.click('text=Agree and continue');
+  await page.waitForTimeout(800);
+  assert((await page.textContent('.profile-pill')).includes('Sam'), 'name shown in the top bar');
+  for (const id of ['ethics', 'worldview', 'goals']) assert((await nodeClass(page, id)).includes('available'), `${id} opened`);
+  assert((await nodeClass(page, 'family')).includes('locked'), 'Family Relationships not open yet');
 
-  // ── Reflection: one question at a time ──
-  await page.click('.next-step .btn');
-  assert(await page.isVisible('.prompt:has-text("harm an innocent other")'), 'E1 shown first');
-  assert(await page.isDisabled('.reflect-actions .btn.primary'), 'Continue waits for an answer; Skip is always there');
-  await page.click('.likert button:has-text("Agree") >> nth=1'); // "Agree" (not "Strongly agree")
-  await page.click('.why .link');
-  assert(await page.isVisible('.why:has-text("Ethics Position Questionnaire")'), 'why-we-ask line shows the source');
-  await shot(page, '04-question');
-  await page.click('.reflect-actions .btn.primary');
-  await page.click('.reflect-actions .btn:has-text("Skip")'); // E2
-  await page.click('.reflect-actions .btn:has-text("Skip")'); // E3
-  await page.locator('.answer input[type=range]').fill('8'); // E4
-  assert(await page.isVisible('.confidence'), 'confidence asked after the answer');
-  await page.click('.seg button:has-text("Low")');
-  await page.click('.reflect-actions .btn.primary');
-  await page.click('.reflect-actions .btn:has-text("Skip")'); // E5
-  const drafts = await page.$$eval('.draft h3', (n) => n.map((x) => x.textContent));
-  assert(drafts.includes('Moral principles') && drafts.includes('Family obligations'), `ends with the notes that changed (${drafts.join(', ')})`);
-  assert(await page.isVisible('.opened:has-text("Moral Principles")') && await page.isVisible('.opened:has-text("Family Relationships")'), 'says which topics opened');
-  await shot(page, '05-end');
-  await page.click('button:has-text("Save to journal")');
-  assert(await page.isVisible('h1:has-text("Saved to your journal")'), 'saved');
-  await page.click('button:has-text("Back to journal")');
-  assert(await page.isVisible('.note-link:has-text("Moral principles")'), 'note listed in the journal');
+  await clickNode(page, 'ethics');
+  await page.click('.context-panel button:has-text("Answer questions")');
+  await page.click('.likert button >> nth=3'); // E1: Agree
+  assert(await page.isVisible('.unlock-callout:has-text("Moral Principles")'), 'E1 (#idealism) opens Moral Principles');
+  await shot(page, '03-question');
+  await page.click('.qn-nav-item >> nth=1'); // E2: Neither
+  await page.click('.likert button >> nth=2');
+  await page.click('.qn-nav-item >> nth=3'); // E4 slider
+  await page.locator('.q-input input[type=range]').fill('8');
+  assert(await page.isVisible('.unlock-callout:has-text("Family Relationships")'), 'E4 (#family-duty) opens Family Relationships');
+  await page.click('.qn-nav-item:has-text("Review and save")');
+  await page.click('.qn-foot button.primary');
+  const drafts = await page.$$eval('.done-section .link-row .mono', (n) => n.map((x) => x.textContent));
+  assert(drafts.includes('ethics/moral-principles') && drafts.includes('ethics/family-obligations'), `answers write to the files Doc 2 names (${drafts.join(', ')})`);
+  await page.click('.done-section .link-row:has-text("ethics/moral-principles")');
+  assert(await page.isVisible('.proposal-bar'), 'note changes shown as a draft first');
+  await shot(page, '04-draft');
+  await page.click('.proposal-bar button:has-text("Commit")');
+  assert((await page.$$eval('.entries .entry', (n) => n.length)) >= 2, 'draft committed into the file');
 
-  // ── Note: clean text, edit behind a toolbar ──
-  await page.click('.note-link:has-text("Moral principles")');
-  assert(!(await page.isVisible('.prov')), 'read mode shows no metadata');
-  await shot(page, '06-note');
-  await page.click('.toolbar button:has-text("Edit")');
-  await page.click('.line[data-entry] >> nth=0');
-  await page.fill('.line-edit', '- If something could hurt an innocent person, I hold back.');
+  await page.click('.entries .entry >> nth=1 >> .entry-text');
+  await page.fill('.entry-edit textarea', '- Least harm overall is my main test, but not the only one.');
   await page.keyboard.press('Enter');
-  assert(await page.isVisible('.line >> nth=0 >> .prov.human'), 'edited line becomes written by you');
-  await page.click('.line[data-entry] >> nth=0');
-  await page.click('.line-tools button:has-text("Lock")');
-  assert(await page.isVisible('.line.locked'), 'line locked from the toolbar');
-  await page.click('.line-tools button:has-text("Details")');
-  assert(await page.isVisible('.details:has-text("E1")'), 'question ID only under details');
-  await page.fill('.add-line', 'I want to know where my limits are.');
+  assert(await page.isVisible('.entries .entry >> nth=1 >> .prov.human'), 'edited line becomes written-by-you');
+  await page.fill('.add-line input', 'I want to understand where my limits are.');
   await page.keyboard.press('Enter');
-  await shot(page, '07-edit');
-  await page.click('.toolbar button:has-text("Done")');
-  await page.click('.toolbar button:has-text("History")');
-  assert((await page.$$('.tl-item')).length >= 2, 'history timeline');
-  await shot(page, '08-history');
+  assert(await page.isVisible('.entry-text:has-text("where my limits are")'), 'own note added');
+  await shot(page, '05-notes');
 
-  // Revisit Ethics with a different E4: the locked line is untouched, and a draft shows the change.
-  await page.click('.toolbar button:has-text("History")');
-  await page.click('.note-small a:has-text("Ethics")');
-  await page.click('.reflect-actions .btn:has-text("Skip")');
-  await page.click('.reflect-actions .btn:has-text("Skip")');
-  await page.click('.reflect-actions .btn:has-text("Skip")');
-  await page.locator('.answer input[type=range]').fill('2');
-  await page.click('.reflect-actions .btn.primary');
-  await page.click('.reflect-actions .btn:has-text("Skip")');
-  assert(await page.isVisible('.draft:has-text("Family obligations")'), 'changed answer drafts a change');
-  await page.click('button:has-text("Discard")');
-  assert(await page.isVisible('.page-title:has-text("journal")'), 'discard returns to the journal');
+  // Retake E2 with a different answer after locking its line: the lock must hold.
+  const e2line = page.locator('.entries .entry', { hasText: 'undecided on whether ethics' });
+  await e2line.hover();
+  await e2line.locator('.lock-btn').click();
+  assert(await e2line.evaluate((n) => n.classList.contains('locked')), 'line locked');
+  await page.click('.tab:has-text("Ethics")');
+  await page.click('.qn-nav-item >> nth=1');
+  await page.click('.likert button >> nth=4');
+  await page.click('.qn-nav-item:has-text("Review and save")');
+  await page.click('.qn-foot button.primary');
+  await page.click('.done-section .link-row:has-text("ethics/moral-principles")');
+  assert(await page.isVisible('.diff-tag:has-text("locked")'), 'locked line kept in the new draft');
+  await page.click('.proposal-bar button:has-text("Cancel")');
+  assert(!(await page.isVisible('.proposal-bar')), 'cancel discards the draft');
 
-  // ── Map ──
-  await nav(page, 'Map');
-  const topics = await page.$$eval('.topic-row .t', (n) => n.map((x) => x.childNodes[0].textContent));
-  assert(topics.join() === 'Ethics,Moral Principles,Family Relationships', `area list (${topics.join(', ')})`);
-  assert(await page.isVisible('.topic-row:has-text("Family Relationships") .route:has-text("Ethics or Long-term Goals")'), 'shared topic shows both routes');
-  await page.click('.topic-row:has-text("Family Relationships")');
-  assert(await page.isVisible('.card .btn:has-text("Start reflecting")'), 'topic card has one main action');
-  await shot(page, '09-map-list');
-  await page.click('.map-switch button:has-text("Full map")');
-  assert(!(await page.$('[data-node="tradeoffs"]')), 'hidden topics are not drawn');
-  await shot(page, '10-map-full');
+  await page.click('[data-file="ethics/main"]');
+  await page.click('.file-toolbar button:has-text("Summarise")');
+  assert(await page.isVisible('.proposal-bar:has-text("Draft summary")'), 'main file summary drafted from the topic files');
+  await page.click('.proposal-bar button:has-text("Commit")');
+  assert(await page.isVisible('.entry-text:has-text("Moral principles:")'), 'summary committed to ethics/main');
+  await page.click('[data-file="ethics/moral-principles"]');
+  await page.click('.seg button:has-text("History")');
+  await shot(page, '06-history');
+  await page.click('.seg button:has-text("Changes over time")');
+  await shot(page, '07-changes');
 
-  // ── Sample ──
-  await nav(page, 'Sam');
-  await page.click('button:has-text("Load the sample")');
-  await nav(page, 'Revisit');
-  assert((await page.$$('[data-tension]')).length === 3, '3 possible tensions in one list');
-  assert((await page.$$('.item')).length === 4, 'Revisit shows four items at a time');
-  await page.click('button:has-text("more")');
-  assert((await page.$$('[data-retake]')).length >= 2, 'retakes in the same list');
-  await page.click('[data-tension="family-vs-project"] button:has-text("Look")');
-  assert(await page.isVisible('[data-tension="family-vs-project"] .evidence'), 'look shows both notes');
-  await shot(page, '11-revisit');
+  await page.click('.tab:has-text("Graph")');
+  await page.waitForTimeout(900);
+  assert((await nodeClass(page, 'moral')).includes('available'), 'Moral Principles open on the graph');
+  assert((await nodeClass(page, 'family')).includes('available'), 'Family Relationships open on the graph');
+  assert((await nodeClass(page, 'ethics')).includes('answered'), 'Ethics answered');
+  await shot(page, '08-graph');
+
+  // ── Sample profile ──
+  await page.click('.profile-pill');
+  await page.click('text=Load sample profile');
+  await page.waitForTimeout(900);
+  await shot(page, '09-sample-graph');
+  await page.click('.fab[aria-label="Potential tensions"]');
+  assert((await page.$$eval('[data-tension]', (n) => n.length)) === 3, '3 potential tensions in the sample');
+  await shot(page, '10-tensions');
   await page.click('[data-tension="family-vs-project"] button:has-text("Dismiss")');
-  assert((await page.$$('[data-tension]')).length === 2, 'dismiss sets it aside');
-
-  await nav(page, 'Ask');
-  await page.click('.examples .link >> nth=0');
-  assert(await page.isVisible('.answer-part h4:has-text("Reading")'), 'reading shown, labelled AI');
+  assert((await page.$$eval('[data-tension]', (n) => n.length)) === 2, 'dismiss hides a tension');
+  await page.click('.fab[aria-label="Suggested retakes"]');
+  assert((await page.$$eval('[data-retake]', (n) => n.length)) >= 2, 'retake suggestions listed');
+  await shot(page, '11-retakes');
+  await page.click('.fab[aria-label="Ask your model"]');
+  await page.click('.example >> nth=0');
+  await page.waitForTimeout(3500);
+  assert(await page.isVisible('.answer-block.interp'), 'ask shows an interpretation');
   await shot(page, '12-ask');
-  await page.click('.answer-part li .cite >> nth=0');
-  assert(await page.isVisible('.line.highlight'), 'citation opens the note at the line');
+  await page.click('.answer-block.reported .cite >> nth=0');
+  await page.waitForTimeout(300);
+  assert(await page.isVisible('.entry.flash'), 'citation opens and highlights the note');
+  await page.click('.fab[aria-label="Ask your model"]');
 
-  // AI summary lines can be kept or removed
-  await nav(page, 'Journal');
-  await page.click('.area:has-text("Ethics") .note-link:has-text("Overview")');
-  const aiLines = (await page.$$('.line.ai')).length;
-  await page.click('.line.ai .ai-actions button:has-text("Remove") >> nth=0');
-  assert((await page.$$('.line.ai')).length === aiLines - 1, 'AI line can be removed');
-  await page.click('.toolbar button:has-text("Summarise")');
-  assert(await page.isVisible('.draft:has-text("Draft summary")'), 'summary is a draft first');
-  await page.click('.draft button:has-text("Discard")');
+  await page.click('.tab:has-text("Graph")');
+  await page.waitForTimeout(500);
+  assert((await nodeClass(page, 'meaning')).includes('locked'), 'Meaning in Life not open yet');
+  await clickNode(page, 'aspirations');
+  await page.click('.context-panel button:has-text("Answer questions")');
+  await page.click('.qn-nav-item >> nth=1');
+  await page.click('.choice:has-text("Recognition")');
+  assert(await page.isVisible('.unlock-callout:has-text("Meaning in Life")'), 'AS2 opens Meaning in Life (its second parent)');
 
-  // AI off hides AI features
-  await nav(page, 'Priya');
-  await page.click('.toggle:has-text("Show AI features") input');
-  await nav(page, 'Ask');
-  assert(await page.isVisible('text=AI is turned off'), 'Ask is off when AI is off');
-  await nav(page, 'Priya');
-  await page.click('.toggle:has-text("Show AI features") input');
-  await shot(page, '13-data');
+  await page.click('.tab:has-text("Graph")');
+  await clickNode(page, 'tradeoffs');
+  await page.click('.context-panel button:has-text("Answer questions")');
+  await page.click('.choice:has-text("Take it")');
+  await page.click('.qn-nav-item:has-text("Review and save")');
+  await page.click('.qn-foot button.primary');
+  await page.click('.done-section .link-row:has-text("ethics/family-obligations")');
+  await page.click('.proposal-bar button:has-text("Commit")');
+  await page.click('.fab[aria-label="Potential tensions"]');
+  assert(await page.isVisible('[data-tension="opportunity-vs-relationships"]'), 'committing the CA1 note surfaces a new tension');
+  await page.click('.fab[aria-label="Potential tensions"]');
 
-  // Reset and erase
-  await page.click('button:has-text("Choose a topic")');
-  await page.click('.topic-line:has-text("Career") button:has-text("Reset")');
-  await page.click('.dialog button.primary:has-text("Reset")');
-  await nav(page, 'Journal');
-  await page.click('.note-link:has-text("Career")');
-  assert(await page.isVisible('.line:has-text("Offer deadline")'), 'reset keeps your own lines');
-  await page.click('.toolbar button:has-text("Erase")');
-  assert(await page.isDisabled('.dialog button:has-text("Erase")'), 'erase needs confirmation');
-  await page.fill('.dialog input', 'erase');
-  await page.click('.dialog button:has-text("Erase")');
-  assert(await page.isVisible('.empty'), 'erase removes the notes');
+  await page.click('[data-file="long-term-goals/career"]');
+  await page.click('button:has-text("Reset topic…")');
+  await shot(page, '13-reset');
+  await page.click('.dialog button:has-text("Reset topic")');
+  assert(await page.isVisible('.entry-text:has-text("Offer deadline")'), 'reset keeps your own lines');
+  await page.click('button:has-text("Erase topic data…")');
+  assert(await page.isDisabled('.dialog button:has-text("Erase topic data")'), 'erase needs confirmation');
+  await page.fill('.dialog input', 'career');
+  await page.click('.dialog button:has-text("Erase topic data")');
+  assert(await page.isVisible('.empty:has-text("No notes yet")'), 'erase removes the notes');
 
-  // Export / import
-  await nav(page, 'Priya');
-  const [download] = await Promise.all([page.waitForEvent('download'), page.click('.section button:has-text("Export")')]);
-  const file = await download.path();
-  await page.click('button:has-text("Start fresh")');
-  assert(await page.isVisible('text=Start your own') || await page.isVisible('#name'), 'fresh start goes back to onboarding');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.click('text=Import an export file');
-  await page.setInputFiles('.dialog input[type=file]', file);
-  await page.waitForSelector('.callout:has-text("Ready to import")');
+  // ── Export / import ──
+  const answersBefore = await page.textContent('.topbar-stat b');
+  await page.click('.profile-pill');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('text=Export (.json)')]);
+  const exportPath = await download.path();
+  assert(/personal-operating-model-.*\.json/.test(download.suggestedFilename()), 'export downloads a JSON file');
+  await page.click('.profile-pill');
+  await page.click('.menu >> text=Start fresh');
+  assert((await page.textContent('.topbar-stat b')) === '0', 'fresh start is empty');
+  await page.click('.profile-pill');
+  await page.click('text=Import…');
+  await page.setInputFiles('.dialog input[type=file]', exportPath);
+  assert(await page.waitForSelector('.callout:has-text("Ready to import")'), 'import previews the file');
   await page.click('button:has-text("Replace and import")');
-  assert(await page.isVisible('.nav button:has-text("Priya")'), 'import restores the journal');
+  assert((await page.textContent('.topbar-stat b')) === answersBefore, `import restores answers (${answersBefore})`);
+  assert((await page.textContent('.profile-pill')).includes('Priya'), 'import restores the name');
 
   console.log('errors:', errors);
   if (errors.length) process.exitCode = 1;

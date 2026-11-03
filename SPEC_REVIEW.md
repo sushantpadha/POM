@@ -87,25 +87,3 @@ Items marked **(changed in build)** were changed in the prototype. All others ar
 4. **No direct "change the importance of an aspect".** Users can edit, delete or lock lines, cancel drafts, or retake a question, but there is no importance control on a note.
 5. **Decision support is only an example question** ("…before deciding on the Zurich offer?"). There is no structured way to bring in a decision and compare options against the model.
 6. **No separate control over sharing with an external AI.** None is needed while no AI is used. The consent step says the user would be asked again before any data is sent to one.
-
-## 5. Against the *POM UI: Executive Summary* (Nov 2026)
-
-The prototype now follows this document. The table below lists where the build interprets something, or doesn't do it yet.
-
-| Summary says | Prototype |
-| --- | --- |
-| Journal home, with Map, Revisit and Ask as separate places | Done. Data is reached from your name in the top bar. |
-| Onboarding step 2 has "Choose AI on or off" | Done. When AI is off, Ask and Summarise are hidden. Rule-based tensions and retakes stay, because they aren't AI. |
-| Step 4: "Agree, or leave" | Done. *Leave* returns to the first screen without storing anything. |
-| E1 is the EPQ idealism item "If an action could harm an innocent other…" | Done. This resolves issue 2.2 above. |
-| E5 and W2 list their options in the prompt | Done |
-| Confidence is low, medium or high | Done. It is stored as 1, 3 or 5, so older data still reads correctly. |
-| Ranking by "drag or tap, with a keyboard option" | Tap and keyboard only, using the up and down buttons. Dragging is not built. |
-| Slider "no preset value" | The slider shows faded with no number until it is moved. A browser range input always has a position, so the handle starts in the middle. |
-| AI text: "accept, change or reject" | *Keep* and *Remove* are on each AI line. *Change* means editing the line, which then counts as written by you. |
-| "Show older versions as a simple timeline" | Done. History and changes over time are now one timeline. |
-| Topic card shows linked notes, what may open next, and both routes for shared topics | Done. Hidden topics are counted ("More may open…") but never named. |
-| Milestone pause before the 10th, 20th… node | Shown before *starting* the 10th, 20th… new topic. The prototype has 10 topics besides the root, so the 20th can't be reached. |
-| Small screens: a topic list instead of the graph | The list is the default view, and the full map is optional. The rest of the layout is a single column. |
-| "Check before building": Ethics shows six questions | Already fixed. Ethics has five. Worldview and Long-term Goals have five each. |
-| "Check before building": where W5 and G5 appear in the notes | W5 goes to `worldview/main` and G5 to `long-term-goals/main`, as before. |

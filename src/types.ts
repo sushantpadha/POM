@@ -23,8 +23,6 @@ export interface Question {
   nodeId: string;
   text: string;
   help?: string;
-  /** Shown behind "Why we ask this". Falls back to the source note. */
-  why?: string;
   type: QuestionType;
   /** For choice / rank questions. */
   options?: Option[];
@@ -90,8 +88,6 @@ export interface Entry {
   provenance: Provenance;
   sourceItemId?: string;
   locked: boolean;
-  /** For summary (AI) lines: the user has read it and chosen to keep it. */
-  accepted?: boolean;
 }
 
 export interface FileVersion {
@@ -120,15 +116,12 @@ export interface NoteFile {
   proposal?: Proposal;
 }
 
-/** One place is visible at a time (see the UI summary: Journal, Map, Revisit, Ask, plus Data). */
-export type View =
-  | { name: 'journal' }
-  | { name: 'note'; fileId: string; mode?: 'read' | 'edit' | 'history' }
-  | { name: 'reflect'; nodeId: string }
-  | { name: 'pause'; nodeId: string; count: number }
-  | { name: 'map'; nodeId?: string; full?: boolean }
-  | { name: 'revisit' }
-  | { name: 'ask' }
-  | { name: 'data' };
+export type Tab =
+  | { kind: 'graph' }
+  | { kind: 'file'; fileId: string }
+  | { kind: 'questionnaire'; nodeId: string }
+  | { kind: 'onboarding' };
+
+export type FileMode = 'notes' | 'history' | 'changes';
 
 export type Profile = 'fresh' | 'sample';

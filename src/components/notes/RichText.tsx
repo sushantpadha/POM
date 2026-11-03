@@ -24,7 +24,7 @@ export function RichText({ text }: { text: string }) {
                 openFile(target);
               }}
             >
-              {files[target].title}
+              {target}
             </a>
           ) : (
             <span key={i} className="faint">{target}</span>

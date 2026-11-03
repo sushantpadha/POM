@@ -13,5 +13,5 @@ export function downloadExport() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  s.toast('Exported. The file is not encrypted, so keep it private.');
+  s.toast({ text: 'Exported your data. The file contains your answers in plain text — store it somewhere private.' });
 }

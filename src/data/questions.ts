@@ -98,8 +98,7 @@ export const QUESTIONS: Question[] = [
   {
     id: 'E1',
     nodeId: 'ethics',
-    // Wording from the UI summary (Nov 2026), replacing Doc 2's "least harm for everyone involved".
-    text: 'If an action could harm an innocent other, then it should not be done.',
+    text: 'A moral action is one that produces the least harm for everyone involved.',
     type: 'likert',
     selfTags: ['idealism'],
     fileIds: ['ethics/moral-principles'],
@@ -109,9 +108,9 @@ export const QUESTIONS: Question[] = [
     note: (v) =>
       agree(
         v,
-        'If an action could harm an innocent person, I think it should not be done.',
-        'I am unsure whether a risk of harm to an innocent person always rules an action out.',
-        'A risk of harm to an innocent person does not always rule an action out for me.',
+        'I judge an action as moral when it causes the least harm overall.',
+        'I am unsure whether “least harm overall” is what makes an action moral.',
+        'For me, causing the least harm overall is not what makes an action moral.',
       ),
   },
   {
@@ -162,7 +161,7 @@ export const QUESTIONS: Question[] = [
   {
     id: 'E5',
     nodeId: 'ethics',
-    text: 'What matters most when you judge whether an action was right: its consequences, a rule or principle, the intentions behind it, or fairness to everyone?',
+    text: 'What matters most when you judge whether an action was right?',
     help: 'Put the most important first.',
     type: 'rank',
     options: E5_OPTS,
@@ -353,7 +352,7 @@ export const QUESTIONS: Question[] = [
   {
     id: 'W2',
     nodeId: 'worldview',
-    text: 'When I need to decide what is true, I mostly rely on experts, experience, family or tradition, intuition, or texts.',
+    text: 'When I need to decide what is true, I mostly rely on…',
     help: 'Put what you rely on most first.',
     type: 'rank',
     options: W2_OPTS,
@@ -627,26 +626,6 @@ export const QUESTIONS: Question[] = [
     note: (v) => `If I had to give one up: ${optionLabel(ASPIRATIONS, v).toLowerCase()}.`,
   },
 ];
-
-// "Why we ask this" lines for the writeup items. Deeper items fall back to their source note.
-const WHY: Record<string, string> = {
-  E1: 'Asks how firmly you hold to not harming others.',
-  E2: 'Asks whether you see moral rules as universal or as depending on context.',
-  E3: 'A concrete case shows how you apply your principles.',
-  E4: 'Family duties often shape big decisions. This answer can change as your life does.',
-  E5: 'Shows what you look at first when you judge right and wrong.',
-  W1: 'Asks how much of your life you see as in your own hands.',
-  W2: 'Asks where you turn when you need to know what is true.',
-  W3: 'Asks how far your sense of responsibility reaches.',
-  W4: 'Beliefs change. Noticing one that did is part of reflecting.',
-  W5: 'Puts what gives your life meaning into one sentence.',
-  G1: 'A current project shows what you are working towards now.',
-  G2: 'Imagining things going well helps you name what you want.',
-  G3: 'Compares things people commonly hope for in life.',
-  G4: 'Asks what you want from family and relationships later on.',
-  G5: 'Shows where you want to put your attention.',
-};
-for (const q of QUESTIONS) q.why ??= WHY[q.id];
 
 export const QUESTION_BY_ID: Record<string, Question> = Object.fromEntries(
   QUESTIONS.map((q) => [q.id, q]),

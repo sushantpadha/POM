@@ -13,8 +13,6 @@ const data: PortableData = {
   dismissedTensions: ['harm-vs-outcomes'],
   tensionContext: {},
   deferred: {},
-  aiEnabled: true,
-  milestonesAck: [],
 };
 
 describe('export / import', () => {

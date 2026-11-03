@@ -58,7 +58,7 @@ export function suggestRetakes(
     if (age >= FLEXIBLE_AGE_DAYS && flex.length) {
       add(node.id, {
         kind: 'flexible-age',
-        text: `Your answers here are from ${fmtDate(p.completedAt)}. Views like these can change.`,
+        text: `${flex.length} flexible answer${flex.length > 1 ? 's are' : ' is'} ${age} days old.`,
       });
     }
     // 3. Answers you marked as unsure.
@@ -66,7 +66,7 @@ export function suggestRetakes(
     if (low.length) {
       add(node.id, {
         kind: 'low-confidence',
-        text: low.length === 1 ? 'You were unsure about one answer.' : `You were unsure about ${low.length} answers.`,
+        text: `You marked ${low.map((q) => q.id).join(', ')} as unsure.`,
       });
     }
   }
