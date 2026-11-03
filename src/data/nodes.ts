@@ -92,11 +92,11 @@ export const NODES: GraphNode[] = [
   {
     id: 'meaning',
     name: 'Meaning in Life',
-    tag: 'purpose',
+    tag: 'meaning',
     branch: 'worldview',
     description:
       'Whether your life feels meaningful now, and whether you are looking for more meaning. Opened from Worldview and from Aspirations.',
-    parentTags: ['purpose', 'aspiration-tradeoff'],
+    parentTags: ['epistemic', 'aspiration-tradeoff'],
     fileId: 'worldview/main',
   },
   // ── Long-term goals ────────────────────────────────────────

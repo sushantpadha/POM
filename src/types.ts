@@ -23,6 +23,8 @@ export interface Question {
   nodeId: string;
   text: string;
   help?: string;
+  /** Shown behind "Why we ask this". Falls back to the source note. */
+  why?: string;
   type: QuestionType;
   /** For choice / rank questions. */
   options?: Option[];

@@ -543,8 +543,24 @@ export const useStore = create<Store>()(
     {
       name: 'pom-prototype-v1',
       // v2 replaced the question set with the writeup's items; older saved state can't be mapped onto it.
-      version: 2,
-      migrate: () => ({}) as Partial<Store>,
+      // v3 was a short-lived journal layout with different UI state; its data fields are kept.
+      version: 4,
+      migrate: (old, version) => {
+        if (version < 2) return {} as Partial<Store>;
+        const o = old as Partial<Store>;
+        return {
+          profile: o.profile,
+          userName: o.userName,
+          onboardedAt: o.onboardedAt,
+          responses: o.responses,
+          progress: o.progress,
+          files: o.files,
+          seen: o.seen ?? [],
+          dismissedTensions: o.dismissedTensions ?? [],
+          tensionContext: o.tensionContext ?? {},
+          deferred: o.deferred ?? {},
+        } as Partial<Store>;
+      },
       partialize: (s) => ({
         profile: s.profile,
         userName: s.userName,

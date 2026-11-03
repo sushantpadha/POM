@@ -41,15 +41,18 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
 
   await clickNode(page, 'ethics');
   await page.click('.context-panel button:has-text("Answer questions")');
+  assert(!(await page.isVisible('.qn-title')) && !(await page.isVisible('.context-panel')), 'only the question is shown, no parent-node text');
   await page.click('.likert button >> nth=3'); // E1: Agree
   assert(await page.isVisible('.unlock-callout:has-text("Moral Principles")'), 'E1 (#idealism) opens Moral Principles');
+  await page.click('.why-link');
+  assert(await page.isVisible('.q-help:has-text("Ethics Position Questionnaire")'), 'source behind "Why we ask this"');
   await shot(page, '03-question');
-  await page.click('.qn-nav-item >> nth=1'); // E2: Neither
+  await page.click('.qn-steps button >> nth=1'); // E2: Neither
   await page.click('.likert button >> nth=2');
-  await page.click('.qn-nav-item >> nth=3'); // E4 slider
+  await page.click('.qn-steps button >> nth=3'); // E4 slider
   await page.locator('.q-input input[type=range]').fill('8');
   assert(await page.isVisible('.unlock-callout:has-text("Family Relationships")'), 'E4 (#family-duty) opens Family Relationships');
-  await page.click('.qn-nav-item:has-text("Review and save")');
+  await page.click('.qn-steps button[aria-label="Review and save"]');
   await page.click('.qn-foot button.primary');
   const drafts = await page.$$eval('.done-section .link-row .mono', (n) => n.map((x) => x.textContent));
   assert(drafts.includes('ethics/moral-principles') && drafts.includes('ethics/family-obligations'), `answers write to the files Doc 2 names (${drafts.join(', ')})`);
@@ -59,10 +62,10 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   await page.click('.proposal-bar button:has-text("Commit")');
   assert((await page.$$eval('.entries .entry', (n) => n.length)) >= 2, 'draft committed into the file');
 
-  await page.click('.entries .entry >> nth=1 >> .entry-text');
+  await page.click('.entries .entry >> nth=0 >> .entry-text');
   await page.fill('.entry-edit textarea', '- Least harm overall is my main test, but not the only one.');
   await page.keyboard.press('Enter');
-  assert(await page.isVisible('.entries .entry >> nth=1 >> .prov.human'), 'edited line becomes written-by-you');
+  assert(await page.isVisible('.entries .entry >> nth=0 >> .prov.human'), 'edited line becomes written-by-you');
   await page.fill('.add-line input', 'I want to understand where my limits are.');
   await page.keyboard.press('Enter');
   assert(await page.isVisible('.entry-text:has-text("where my limits are")'), 'own note added');
@@ -74,9 +77,9 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   await e2line.locator('.lock-btn').click();
   assert(await e2line.evaluate((n) => n.classList.contains('locked')), 'line locked');
   await page.click('.tab:has-text("Ethics")');
-  await page.click('.qn-nav-item >> nth=1');
+  await page.click('.qn-steps button >> nth=1');
   await page.click('.likert button >> nth=4');
-  await page.click('.qn-nav-item:has-text("Review and save")');
+  await page.click('.qn-steps button[aria-label="Review and save"]');
   await page.click('.qn-foot button.primary');
   await page.click('.done-section .link-row:has-text("ethics/moral-principles")');
   assert(await page.isVisible('.diff-tag:has-text("locked")'), 'locked line kept in the new draft');
@@ -129,7 +132,7 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   assert((await nodeClass(page, 'meaning')).includes('locked'), 'Meaning in Life not open yet');
   await clickNode(page, 'aspirations');
   await page.click('.context-panel button:has-text("Answer questions")');
-  await page.click('.qn-nav-item >> nth=1');
+  await page.click('.qn-steps button >> nth=1');
   await page.click('.choice:has-text("Recognition")');
   assert(await page.isVisible('.unlock-callout:has-text("Meaning in Life")'), 'AS2 opens Meaning in Life (its second parent)');
 
@@ -137,7 +140,7 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   await clickNode(page, 'tradeoffs');
   await page.click('.context-panel button:has-text("Answer questions")');
   await page.click('.choice:has-text("Take it")');
-  await page.click('.qn-nav-item:has-text("Review and save")');
+  await page.click('.qn-steps button[aria-label="Review and save"]');
   await page.click('.qn-foot button.primary');
   await page.click('.done-section .link-row:has-text("ethics/family-obligations")');
   await page.click('.proposal-bar button:has-text("Commit")');

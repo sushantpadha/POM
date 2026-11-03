@@ -45,7 +45,8 @@ on first load, because the old question IDs don't map onto the new items.
 ## Questions
 
 The 15 branch items are Doc 2's E1–E5, W1–W5 and G1–G5, with the wording, format, tag, Stable/Flexible type and source
-unchanged, except that W5 is tagged `#purpose` (see `SPEC_REVIEW.md`). Each question lists the notes file(s) it writes to,
+unchanged. E1, E5 and W2 use the wording from the *POM UI: Executive Summary* (E1 is the EPQ idealism item; E5 and W2
+list their options in the prompt). W5 keeps Doc 2's `#epistemic` tag (see `SPEC_REVIEW.md`). Each question lists the notes file(s) it writes to,
 as in Doc 2:
 
 | Answers | Write to |
@@ -67,7 +68,7 @@ nothing is scored.
 | Family Relationships | `#family-duty` (E4) **or** `#relationships` (G4…) | informed by the dual filial piety model, plus a limits question |
 | Care vs Ambition | Family Relationships **or** Personal Projects | our own trade-off questions |
 | Personal Agency | `#personal-agency` (W1) | Rotter-style forced-choice pairs |
-| Meaning in Life | W5 **or** Aspirations | MLQ presence and search, paraphrased |
+| Meaning in Life | `#epistemic` (W5) **or** Aspirations | MLQ presence and search, paraphrased |
 | Personal Projects | `#career` | Personal Projects Analysis rating dimensions |
 | Aspirations | `#aspirations` (G3) | Aspiration Index likelihood ratings |
 

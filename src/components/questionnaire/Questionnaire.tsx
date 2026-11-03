@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import type { AnswerValue, Question } from '../../types';
 import { useStore } from '../../store/store';
@@ -6,17 +6,21 @@ import { MODEL } from '../../store/model';
 import { NODE_BY_ID } from '../../data/nodes';
 import { formatAnswer } from '../../data/questions';
 import { useDerived } from '../../hooks/useDerived';
-import { fmtDate } from '../../logic/format';
-import { SOURCE_LABEL } from '../branding';
 import { QuestionInput } from './QuestionInput';
 
-const CONFIDENCE = ['Very unsure', 'Unsure', 'Somewhat', 'Sure', 'Very sure'];
+// Low / medium / high, stored as 1 / 3 / 5 so older answers still read correctly.
+const CONFIDENCE: [string, number][] = [
+  ['Low', 1],
+  ['Medium', 3],
+  ['High', 5],
+];
+const confidenceLevel = (n?: number) => (n === undefined ? undefined : n <= 2 ? 1 : n >= 4 ? 5 : 3);
+const confidenceLabel = (n: number) => CONFIDENCE.find(([, v]) => v === confidenceLevel(n))![0].toLowerCase();
 
 export function Questionnaire({ nodeId }: { nodeId: string }) {
   const node = NODE_BY_ID[nodeId];
   const questions = MODEL.questionsByNode[nodeId];
   const responses = useStore((s) => s.responses);
-  const progress = useStore((s) => s.progress[nodeId]);
   const focus = useStore((s) => s.focusQuestion);
   const setResponse = useStore((s) => s.setResponse);
   const setConfidence = useStore((s) => s.setConfidence);
@@ -28,10 +32,10 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   const { status } = useDerived();
 
   const [index, setIndex] = useState(0);
+  const [why, setWhy] = useState<string | null>(null);
   const [discovered, setDiscovered] = useState<string[]>([]);
   const [lastUnlock, setLastUnlock] = useState<{ qid: string; ids: string[] } | null>(null);
   const [done, setDone] = useState<{ proposalFileIds: string[] } | null>(null);
-  const isRetake = useRef(!!progress?.completedAt).current;
 
   useEffect(() => {
     if (focus?.nodeId === nodeId) {
@@ -118,43 +122,45 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   const q = questions[index];
 
   return (
-    <div className="qn">
-      <nav className="qn-nav" aria-label="Questions">
-        {questions.map((qq, i) => (
-          <button key={qq.id} className={`qn-nav-item ${i === index ? 'active' : ''}`} onClick={() => setIndex(i)}>
-            <span className={`n ${responses[qq.id] ? 'done' : ''}`}>{responses[qq.id] ? <Check size={10} /> : qq.id}</span>
-            <span className="grow">{qq.text}</span>
-          </button>
-        ))}
-        <button className={`qn-nav-item ${index === reviewIndex ? 'active' : ''}`} onClick={() => setIndex(reviewIndex)}>
-          <span className="n">✓</span>
-          <span className="grow">Review and save</span>
-        </button>
-        <div className="metric-note" style={{ padding: '14px 8px 0' }}>
-          {answered} of {questions.length} answered. All optional.
-          {isRetake && progress?.completedAt && <div>Last saved {fmtDate(progress.completedAt)}</div>}
-        </div>
-      </nav>
-
+    <div className="qn-single">
       <div className="qn-main">
         <div className="qn-inner">
-          <h2 className="qn-title">{node.name}</h2>
-          <p className="muted qn-desc">{node.description}</p>
-          {node.branch === 'worldview' && nodeId === 'worldview' && (
-            <p className="faint qn-desc">These are prompts for reflection, not a validated worldview scale.</p>
-          )}
+          {/* Just the question: a small row of steps, no titles or descriptions around it. */}
+          <nav className="qn-steps" aria-label="Questions">
+            {questions.map((qq, i) => (
+              <button
+                key={qq.id}
+                className={`${i === index ? 'active' : ''} ${responses[qq.id] ? 'done' : ''}`}
+                onClick={() => setIndex(i)}
+                aria-label={`Question ${i + 1}${responses[qq.id] ? ', answered' : ''}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button className={index === reviewIndex ? 'active' : ''} onClick={() => setIndex(reviewIndex)} aria-label="Review and save">
+              <Check size={12} />
+            </button>
+          </nav>
 
           {q ? (
             <div className="q-card" key={q.id}>
               <div className="q-meta">
-                <span className="mono">{q.id}</span>
                 <span title={q.stability === 'stable' ? 'Expected to change slowly' : 'Expected to change as your life changes'}>
                   {q.stability === 'stable' ? 'Stable' : 'Flexible'}
                 </span>
-                <span title={q.sourceNote}>{SOURCE_LABEL[q.source]}</span>
               </div>
               <p className="q-text">{q.text}</p>
               {q.help && <p className="q-help">{q.help}</p>}
+              {why === q.id ? (
+                <p className="q-help">
+                  {q.why ? `${q.why} ` : ''}
+                  {q.sourceNote}
+                </p>
+              ) : (
+                <button className="why-link" onClick={() => setWhy(q.id)}>
+                  Why we ask this
+                </button>
+              )}
               <div className="q-input">
                 <QuestionInput q={q} response={responses[q.id]} onAnswer={(v) => answer(q, v)} />
               </div>
@@ -163,8 +169,8 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                 <div className="confidence">
                   <span className="lbl">How sure are you?</span>
                   <div className="seg">
-                    {CONFIDENCE.map((c, i) => (
-                      <button key={c} className={responses[q.id]?.confidence === i + 1 ? 'sel' : ''} onClick={() => setConfidence(q.id, i + 1)}>
+                    {CONFIDENCE.map(([c, n]) => (
+                      <button key={c} className={confidenceLevel(responses[q.id]?.confidence) === n ? 'sel' : ''} onClick={() => setConfidence(q.id, n)}>
                         {c}
                       </button>
                     ))}
@@ -185,8 +191,6 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                 </div>
               )}
 
-              <div className="q-source">Source: {q.sourceNote}</div>
-
               <div className="qn-foot">
                 <button className="btn ghost" disabled={index === 0} onClick={() => setIndex(index - 1)}>
                   <ArrowLeft size={13} /> Back
@@ -197,8 +201,11 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                     Clear
                   </button>
                 )}
-                <button className="btn primary" onClick={() => setIndex(index + 1)}>
-                  {responses[q.id] ? 'Next' : 'Skip'} <ArrowRight size={13} />
+                <button className="btn" onClick={() => setIndex(index + 1)}>
+                  Skip
+                </button>
+                <button className="btn primary" disabled={!responses[q.id]} onClick={() => setIndex(index + 1)}>
+                  Next <ArrowRight size={13} />
                 </button>
               </div>
             </div>
@@ -209,12 +216,12 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                 const res = responses[qq.id];
                 return (
                   <div key={qq.id} className="review-row">
-                    <span className="mono faint">{qq.id}</span>
+                    <span className="faint">{i + 1}</span>
                     <div>
                       <div>{qq.text}</div>
                       <div className="ans">
                         {res ? formatAnswer(qq, res.value) : <span className="faint">Skipped</span>}
-                        {res?.confidence && <span className="faint"> · {CONFIDENCE[res.confidence - 1].toLowerCase()}</span>}
+                        {res?.confidence && <span className="faint"> · {confidenceLabel(res.confidence)} confidence</span>}
                       </div>
                     </div>
                     <button className="btn ghost sm" onClick={() => setIndex(i)}>

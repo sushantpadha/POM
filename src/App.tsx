@@ -32,8 +32,8 @@ export default function App() {
       content = <Onboarding />;
       break;
     case 'questionnaire':
+      // While answering, only the question is shown: no node panel beside it.
       content = <Questionnaire key={tab.nodeId} nodeId={tab.nodeId} />;
-      panel = <NodePanel nodeId={tab.nodeId} closable={false} />;
       break;
     case 'file':
       content = <FileEditor key={tab.fileId} fileId={tab.fileId} />;
