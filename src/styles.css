@@ -692,3 +692,7 @@ a:hover { text-decoration-color: var(--text); }
 .ai-settings .row label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); }
 .ai-settings .input { padding: 6px 10px; }
 .ai-settings .field { display: grid; grid-template-columns: 90px 1fr; gap: 8px; align-items: center; }
+/* ── v2: experiment mode ───────────────────────────────────── */
+.advanced { border-top: 1px solid var(--border-soft); padding-top: 10px; }
+.advanced summary { cursor: pointer; color: var(--text-dim); }
+.experiment-status { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; font-size: 13px; }

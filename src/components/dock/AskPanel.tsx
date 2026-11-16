@@ -258,6 +258,7 @@ export function AskPanel() {
     if (!question) return;
     setInput('');
     const result = aiOn ? aiAnswer(question, files) : answer(question, files, responses, profile === 'sample');
+    useStore.getState().track('ask', { question, ai: aiOn, quoted: result.reported.length });
     setTurns((t) => [...t, { question, result, stage: 0, ai: aiOn ? { status: 'idle' } : undefined }]);
   };
 
@@ -266,7 +267,9 @@ export function AskPanel() {
     if (!provider) return;
     const setAi = (state: AiState) => setTurns((t) => t.map((x, i) => (i === index ? { ...x, ai: state } : x)));
     setAi({ status: 'loading' });
+    useStore.getState().track('reading_requested', { question: turns[index].question });
     const res = await reading(provider, turns[index].question, useStore.getState().files);
+    useStore.getState().track('ai_output_shown', { task: 'reading', failed: !res, readings: res?.readings.length ?? 0, notInNotes: res?.notInNotes ?? false });
     setAi(res ? { status: 'done', readings: res.readings, notInNotes: res.notInNotes } : { status: 'failed' });
   };
 

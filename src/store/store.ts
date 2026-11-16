@@ -25,6 +25,15 @@ import { applyAnswer, commitVersion, nowIso, regenerate, summarize, summarizeBra
 import { MODEL, nodesForFile, questionsForFile } from './model';
 import { buildExport, type ExportFile, type PortableData } from '../logic/transfer';
 import { DEFAULT_AI, type AiSettings } from '../ai/provider';
+import { log as experimentLog, msSinceShown } from '../logic/experiment';
+
+/** Experiment-mode logging: one call from the store actions. Never for the sample profile. */
+function xlog(s: { profile: Profile | null }, type: string, data: Record<string, unknown> = {}) {
+  if (s.profile !== 'fresh') return;
+  experimentLog(type, data);
+}
+
+const DEPTH_GATES = ['GC1', 'GH1'];
 
 /** Tabs of the right-hand dock. */
 export type DockTab = 'details' | 'ask' | 'tensions' | 'revisit';
@@ -89,6 +98,8 @@ interface Actions {
   proposeSummary: (fileId: string, aiLines?: string[]) => boolean;
   setAi: (patch: Partial<AiSettings>) => void;
   setBusy: (text: string | null) => void;
+  /** Experiment-mode event from a component (question shown, skipped, Ask…). */
+  track: (type: string, data?: Record<string, unknown>) => void;
   restoreVersion: (fileId: string, versionId: string) => void;
   resetTopic: (fileId: string, retainResponses: boolean) => void;
   eraseTopic: (fileId: string) => void;
@@ -263,6 +274,7 @@ export const useStore = create<Store>()(
         ai: { ...DEFAULT_AI },
         busy: null,
         setBusy: (text) => set((s) => void (s.busy = text)),
+        track: (type, data = {}) => xlog(get(), type, data),
 
         setAi: (patch) =>
           set((s) => {
@@ -334,12 +346,21 @@ export const useStore = create<Store>()(
               note: q.log && newRun ? undefined : prev?.note,
               history: prev && changed ? historyWith(prev, lastCompleted) : prev?.history,
             };
+            const inRun = !!prev && !newRun;
+            if (inRun) {
+              if (changed) xlog(s, 'changed', { qid, node: q.nodeId, value });
+            } else {
+              xlog(s, 'answered', { qid, node: q.nodeId, value, confidence: confidence ?? prev?.confidence, ms: msSinceShown(qid), retake: !!prev, changedFromLast: prev ? changed : undefined });
+            }
+            if (DEPTH_GATES.includes(qid)) xlog(s, 'depth_gate', { qid, value });
             files = applyToFiles(s, qid);
             s.progress[q.nodeId] ??= { submissions: [] };
             s.progress[q.nodeId].startedAt ??= nowIso();
           });
           const after = available(get());
-          return { opened: [...after].filter((id) => !before.has(id)), files };
+          const opened = [...after].filter((id) => !before.has(id));
+          opened.forEach((nodeId) => xlog(get(), 'area_opened', { nodeId, by: qid }));
+          return { opened, files };
         },
 
         setAnswerNote: (qid, note) => {
@@ -351,6 +372,7 @@ export const useStore = create<Store>()(
             if ((r.note ?? '') === t) return;
             if (t) r.note = t;
             else delete r.note;
+            xlog(s, 'note_added', { qid, text: t });
             files = applyToFiles(s, qid);
           });
           return files;
@@ -364,6 +386,7 @@ export const useStore = create<Store>()(
             const nodeId = MODEL.questions.find((q) => q.id === qid)!.nodeId;
             prev.history = historyWith(prev, s.progress[nodeId]?.completedAt);
             prev.answeredAt = nowIso();
+            xlog(s, 'still_true', { qid, node: nodeId });
             // A check-in answer that is still true is logged again with this month's date.
             files = applyToFiles(s, qid);
           });
@@ -380,6 +403,7 @@ export const useStore = create<Store>()(
           set((s) => {
             if (!s.responses[qid]) return;
             delete s.responses[qid];
+            xlog(s, 'cleared', { qid });
             files = applyToFiles(s, qid); // removes the line if it is unlocked and unedited
           });
           return files;
@@ -392,6 +416,8 @@ export const useStore = create<Store>()(
             s.progress[nodeId].startedAt ??= now;
             s.progress[nodeId].completedAt = now;
             s.progress[nodeId].submissions.push(now);
+            xlog(s, 'questionnaire_finished', { nodeId });
+            if (nodeId === 'checkin') xlog(s, 'checkin_completed', {});
           }),
 
         addEntry: (fileId, afterId, text, kind = 'li') => {
@@ -403,6 +429,7 @@ export const useStore = create<Store>()(
             const idx = afterId ? cur.entries.findIndex((e) => e.id === afterId) : -1;
             if (idx >= 0) cur.entries.splice(idx + 1, 0, entry);
             else cur.entries.push(entry);
+            xlog(s, 'line_added', { fileId, text });
           });
           return id;
         },
@@ -417,6 +444,7 @@ export const useStore = create<Store>()(
             e.text = text;
             if (kind) e.kind = kind;
             e.updatedAt = nowIso();
+            xlog(s, 'line_edited', { fileId, text, was: old.provenance });
             e.provenance = 'human'; // any user edit makes the line human-written
           }),
 
@@ -426,13 +454,17 @@ export const useStore = create<Store>()(
             if (!old || old.locked) return;
             const cur = editableCurrent(s, fileId);
             cur.entries = cur.entries.filter((e) => e.id !== entryId);
+            xlog(s, 'line_deleted', { fileId, was: old.provenance });
           }),
 
         toggleLock: (fileId, entryId) =>
           set((s) => {
             // Lock state is line metadata; it does not create a new file version.
             const e = s.files[fileId].current.entries.find((x) => x.id === entryId);
-            if (e) e.locked = !e.locked;
+            if (e) {
+              e.locked = !e.locked;
+              xlog(s, e.locked ? 'line_locked' : 'line_unlocked', { fileId, was: e.provenance });
+            }
           }),
 
         commitProposal: (fileId) =>
@@ -440,6 +472,7 @@ export const useStore = create<Store>()(
             const file = s.files[fileId];
             if (!file.proposal) return;
             const { kind, protectedIds: _p, clearsAnswers, ...version } = file.proposal;
+            xlog(s, kind === 'summary' ? 'summary_accepted' : 'reset_accepted', { fileId, ai: version.entries.some((e) => e.provenance === 'ai' && e.kind !== 'h') && !!s.ai.consentAt && s.ai.mode === 'ollama' });
             if (clearsAnswers?.length) {
               clearsAnswers.forEach((qid) => delete s.responses[qid]);
               clearEmptyProgress(s, nodesForFile(fileId));
@@ -451,6 +484,8 @@ export const useStore = create<Store>()(
 
         cancelProposal: (fileId) =>
           set((s) => {
+            const kind = s.files[fileId].proposal?.kind;
+            if (kind) xlog(s, kind === 'summary' ? 'summary_rejected' : 'reset_cancelled', { fileId });
             s.files[fileId].proposal = undefined;
           }),
 
@@ -537,6 +572,7 @@ export const useStore = create<Store>()(
         dismissTension: (id) =>
           set((s) => {
             if (!s.dismissedTensions.includes(id)) s.dismissedTensions.push(id);
+            xlog(s, 'tension_dismissed', { id });
           }),
         restoreTension: (id) =>
           set((s) => {
@@ -553,6 +589,7 @@ export const useStore = create<Store>()(
         deferRetake: (nodeId, days) =>
           set((s) => {
             s.deferred[nodeId] = new Date(Date.now() + days * 86400000).toISOString();
+            xlog(s, 'retake_deferred', { nodeId, days });
           }),
         undeferRetake: (nodeId) =>
           set((s) => {
@@ -592,6 +629,7 @@ export const useStore = create<Store>()(
         setActiveTab: (index) => set((s) => void (s.activeTab = index)),
 
         openFile: (fileId, opts) => {
+          xlog(get(), 'note_opened', { fileId });
           get().openTab({ kind: 'file', fileId });
           set((s) => {
             if (opts?.mode) s.fileModes[fileId] = opts.mode;
@@ -618,6 +656,7 @@ export const useStore = create<Store>()(
         setInspectVersion: (fileId, versionId) => set((s) => void (s.inspectVersion[fileId] = versionId)),
         setDock: (tab, tensionFocus = null) =>
           set((s) => {
+            if (s.dock !== tab) xlog(s, 'dock_tab', { tab });
             s.dock = tab;
             s.tensionFocus = tensionFocus;
           }),

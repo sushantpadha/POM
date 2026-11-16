@@ -13,6 +13,7 @@ function SuggestionCard({ s }: { s: RetakeSuggestion }) {
   const setActiveTab = useStore((st) => st.setActiveTab);
   const openFile = useStore((st) => st.openFile);
   const defer = useStore((st) => st.deferRetake);
+  const track = useStore((st) => st.track);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const node = NODE_BY_ID[s.nodeId];
 
@@ -34,7 +35,7 @@ function SuggestionCard({ s }: { s: RetakeSuggestion }) {
         ))}
       </ul>
       <div className="card-actions">
-        <button className="btn sm" onClick={() => openQuestionnaire(s.nodeId)}>
+        <button className="btn sm" onClick={() => { track('retake_accepted', { nodeId: s.nodeId, reasons: s.reasons.map((r) => r.kind) }); openQuestionnaire(s.nodeId); }}>
           Retake
         </button>
         <button

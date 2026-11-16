@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Database, Download, Upload, X } from 'lucide-react';
 import { downloadExport } from './transfer';
 import { AiSettings } from '../dialogs/AiSettings';
+import { ExperimentSettings } from '../dialogs/ExperimentSettings';
 import { useStore, type Toast } from '../../store/store';
 import { fmtDateTime } from '../../logic/format';
 
@@ -80,6 +81,7 @@ export function AboutDialog() {
             </li>
           </ul>
           <AiSettings />
+          <ExperimentSettings />
         </div>
         <div className="dialog-foot">
           <button className="btn" onClick={downloadExport}>

@@ -29,7 +29,11 @@ function useAiWording(t: Tension): { text: string | null; pending: boolean } {
       return;
     }
     const key = `${provider.name}|${provider.model}|${a.text}|${b.text}`;
-    if (!worded.has(key)) worded.set(key, wordTension(provider, a, b));
+    if (!worded.has(key)) {
+      const p = wordTension(provider, a, b);
+      worded.set(key, p);
+      p.then((text) => useStore.getState().track('ai_output_shown', { task: 'tension', id: t.rule.id, failed: !text }));
+    }
     let live = true;
     setState({ text: null, pending: true });
     worded.get(key)!.then((text) => live && setState({ text, pending: false }));
@@ -173,6 +177,12 @@ export function TensionsPanel() {
   const focusNode = useStore((s) => s.tensionFocus);
   const setDock = useStore((s) => s.setDock);
   const [showDismissed, setShowDismissed] = useState(false);
+  const visible = useStore((s) => s.dock === 'tensions');
+  const track = useStore((s) => s.track);
+  const ids = openTensions.map((t) => t.rule.id).join(',');
+  useEffect(() => {
+    if (visible) track('tension_viewed', { ids: ids ? ids.split(',') : [] });
+  }, [visible, ids, track]);
   const dismissedCount = tensions.length - openTensions.length;
 
   const node = focusNode ? NODE_BY_ID[focusNode] : null;

@@ -19,6 +19,7 @@ export async function requestSummary(fileId: string) {
     s.setBusy(`Summarising with ${provider.model}…`);
     const lines = await summarise(provider, useStore.getState().files[fileId]);
     useStore.getState().setBusy(null);
+    useStore.getState().track('ai_output_shown', { task: 'summarise', fileId, failed: !lines, lines: lines?.length ?? 0 });
     if (lines) aiLines = lines.map((l) => l.text);
     else useStore.getState().toast({ text: 'No AI reading for this one: the model did not answer or its lines did not pass the checks. Used the rule-based summary.' });
   }

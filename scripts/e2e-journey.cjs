@@ -320,6 +320,47 @@ const lineTexts = (page) => page.$$eval('.entries .entry-text', (n) => n.map((x)
   assert((await page.textContent('.topbar-stat b')) === answersBefore, `import restores answers (${answersBefore})`);
   assert((await page.textContent('.profile-pill')).includes('Priya'), 'import restores the name');
 
+  // ── Experiment mode ──
+  await page.click('.profile-pill');
+  await page.click('.menu >> text=Start fresh');
+  await details(page, 'Start');
+  await page.fill('.name-field input', 'Tester');
+  for (let i = 0; i < 3; i++) await page.click('.onb-nav button.primary');
+  await page.click('text=I agree to my answers');
+  await page.click('text=I understand this is not a clinical tool');
+  await page.click('text=Agree and continue');
+  await page.click('button[title="Your data"]');
+  await page.click('.advanced summary');
+  assert(await page.isVisible('text=Records every answer, note and click with timestamps in this browser, so you can export it and share it with the research team. Nothing is sent automatically.'), 'Advanced options explain experiment mode in one line');
+  assert(!(await page.isChecked('input[aria-label="Experiment mode"]')), 'experiment mode is off by default');
+  await page.check('input[aria-label="Experiment mode"]');
+  assert(await page.isVisible('[data-experiment-status]:has-text("Participant p-")'), 'turning it on makes a random participant id');
+  await shot(page, '18-experiment');
+  await page.click('.dialog button:has-text("Close")');
+  await page.waitForTimeout(900);
+  await clickNode(page, 'priorities');
+  await details(page, 'Answer questions');
+  await page.keyboard.press('2');
+  await page.waitForTimeout(700);
+  await page.click('.qn-foot button:has-text("Skip")');
+  await exitFocus(page);
+  const xlog = await page.evaluate(() => JSON.parse(localStorage.getItem('pom-experiment-log')));
+  const types = xlog.events.map((e) => e.type);
+  assert(['session_start', 'question_shown', 'answered', 'skipped', 'questionnaire_abandoned'].every((t) => types.includes(t)), `events are logged (${[...new Set(types)].join(', ')})`);
+  assert(!JSON.stringify(xlog).includes('Tester'), 'the display name is never logged');
+  const answered = xlog.events.find((e) => e.type === 'answered');
+  assert(answered.qid === 'P1' && typeof answered.ms === 'number', 'an answer is logged with its time from shown to answered');
+  await page.click('button[title="Your data"]');
+  const [xdl] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Export experiment log")')]);
+  assert(/pom-experiment-p-.*\.json/.test(xdl.suggestedFilename()), 'the log exports as its own JSON file');
+  const out = require('child_process').execFileSync('node', ['scripts/experiment-summary.mjs', '--json', await xdl.path()]).toString();
+  const p1 = JSON.parse(out).rows.find((r) => r.item === 'P1');
+  assert(p1 && p1.shown === 1 && p1.answered === 1, 'experiment-summary reads the export (P1 shown 1, answered 1)');
+  await page.click('input[aria-label="Experiment mode"]');
+  await page.click('[data-experiment-off] button:has-text("Delete the log")');
+  assert(await page.evaluate(() => localStorage.getItem('pom-experiment-log')) === null, 'turning it off can delete the log');
+  await page.click('.dialog button:has-text("Close")');
+
   // Old saved data (an earlier storage version) is discarded on load.
   await page.evaluate(() => localStorage.setItem('pom-prototype-v1', JSON.stringify({ state: { profile: 'fresh', responses: { E1: { value: 4 } } }, version: 4 })));
   await page.reload();

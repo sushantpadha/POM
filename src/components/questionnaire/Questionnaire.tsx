@@ -9,6 +9,7 @@ import { shortAnswer } from '../../data/questions';
 import { visibleQuestions } from '../../logic/graph';
 import { lastTime, thenAndNow } from '../../logic/thenNow';
 import { nowIso } from '../../logic/notes';
+import { markShown } from '../../logic/experiment';
 import { QuestionInput } from './QuestionInput';
 
 // Low / medium / high, stored as 1 / 3 / 5 so older answers still read correctly.
@@ -58,6 +59,7 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   const setAnswerNote = useStore((s) => s.setAnswerNote);
   const clearResponse = useStore((s) => s.clearResponse);
   const finish = useStore((s) => s.finishQuestionnaire);
+  const track = useStore((s) => s.track);
   const openFile = useStore((s) => s.openFile);
   const selectNode = useStore((s) => s.selectNode);
   const setActiveTab = useStore((s) => s.setActiveTab);
@@ -89,6 +91,26 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   const answered = questions.filter((q) => responses[q.id]).length;
   const doneIndex = questions.length;
   const atDone = index >= doneIndex;
+
+  // Experiment mode: which question is on screen, and where a run was left unfinished.
+  const shownId = atDone ? null : questions[index]?.id;
+  const lastShown = useRef<string | null>(null);
+  useEffect(() => {
+    if (!shownId || lastShown.current === shownId) return; // also skips StrictMode's second run
+    lastShown.current = shownId;
+    markShown(shownId);
+    track('question_shown', { qid: shownId, node: nodeId });
+  }, [shownId, nodeId, track]);
+  // Deferred so StrictMode's mount-unmount-mount in development does not count as leaving.
+  const abandonTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    window.clearTimeout(abandonTimer.current);
+    return () => {
+      abandonTimer.current = window.setTimeout(() => {
+        if (!finished.current) track('questionnaire_abandoned', { nodeId, at: lastShown.current });
+      }, 0);
+    };
+  }, [nodeId, track]);
 
   // Reaching the Done step finishes the run (answers were already written to the notes).
   useEffect(() => {
@@ -339,7 +361,13 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                   Clear
                 </button>
               )}
-              <button className="btn" onClick={() => go(index + 1)}>
+              <button
+                className="btn"
+                onClick={() => {
+                  if (!responses[q.id]) track('skipped', { qid: q.id, node: nodeId });
+                  go(index + 1);
+                }}
+              >
                 Skip
               </button>
               <button className="btn primary" disabled={!responses[q.id]} onClick={() => go(index + 1)}>
