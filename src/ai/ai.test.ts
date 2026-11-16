@@ -72,6 +72,8 @@ describe('tasks with the fake provider', () => {
     for (const x of r!.readings) for (const c of x.cites) expect(ids).toContain(c);
     const none = await reading(new FakeProvider(() => ({ readings: [], not_in_notes: true })), 'What do I owe my parents?', files);
     expect(none).toMatchObject({ readings: [], notInNotes: true });
+    const stray = await reading(new FakeProvider(() => ({ readings: [{ text: 'Not mentioned.', cites: [] }], not_in_notes: true })), 'What do I owe my parents?', files);
+    expect(stray).toMatchObject({ readings: [], notInNotes: true });
   });
 
   it('retrieves at most 12 lines, leaving out headings and AI lines', () => {

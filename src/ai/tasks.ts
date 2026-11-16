@@ -65,8 +65,9 @@ export async function reading(provider: LLMProvider, question: string, files: Re
   try {
     const raw = await provider.json<unknown>(readingRequest(question, prompt));
     const c = checkReading(raw, prompt.map((p) => p.id), `${question}\n${prompt.map((p) => p.text).join('\n')}`, LIMITS.readings, LIMITS.readingWords);
-    if (!c.schemaOk) return null;
+    // "Not in the notes" wins even if the model also sent stray lines (the eval still counts that as a fail).
     if (c.notInNotes) return { lines, readings: [], notInNotes: true };
+    if (!c.schemaOk) return null;
     if (!c.kept.length) return null;
     const byId = new Map(lines.map((l) => [l.id, l.entry.id]));
     return { lines, readings: c.kept.map((r) => ({ text: r.text, cites: r.cites.map((x) => byId.get(x)!) })), notInNotes: false };

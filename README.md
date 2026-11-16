@@ -24,6 +24,30 @@ On first load, choose **Start fresh** (consent, then your own answers) or **Look
 Priya, a fictional MSc student weighing a PhD offer abroad against family commitments. You can switch later from the
 menu at the top right.
 
+## Local AI (optional)
+
+AI is off by default. When on, it only uses a model running on your own computer through
+[Ollama](https://ollama.com); there is no hosted AI and nothing leaves your machine.
+
+```bash
+ollama pull phi4-mini         # default (best in our eval, see AI_EVAL.md); qwen3:1.7b is the low-memory option
+```
+
+Then open **Your data** (the ⓘ button) → **AI** → **Ollama**, agree to the second consent, and use **Test connection**.
+The address defaults to `http://localhost:11434` and the model name is a setting.
+
+- From `npm run dev` on `localhost`, no Ollama setting is needed.
+- For the hosted GitHub Pages build, start Ollama with your page's origin allowed, e.g.
+  `OLLAMA_ORIGINS=https://<user>.github.io ollama serve`.
+
+With AI on, the model shortens notes (a draft you accept or cancel), words potential tensions, and gives a reading in Ask
+only when you click **Show a reading**. Code picks what goes in and checks what comes out (valid JSON, citations,
+length, no advice or diagnosis phrases, no invented numbers or dates); anything that fails falls back to the
+rule-based output.
+
+`node scripts/ai-eval.mjs phi4-mini qwen3:4b …` runs 15 fixtures from the sample profile against a running Ollama and
+prints pass rates per model.
+
 ## Deploying to GitHub Pages
 
 1. In the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions** (one time).

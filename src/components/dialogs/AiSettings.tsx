@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { installedModels } from '../../ai/current';
-import { SUGGESTED_MODELS } from '../../ai/provider';
+import { DEFAULT_AI, SUGGESTED_MODELS } from '../../ai/provider';
 
 export const AI_CONSENT_TEXT = 'Your notes are sent to the model running on this computer. Nothing leaves it.';
 
@@ -80,7 +80,7 @@ export function AiSettings() {
           </label>
           <label className="field">
             <span>Model</span>
-            <input className="input" list="ai-models" defaultValue={ai.model} onBlur={(e) => setAi({ model: e.target.value.trim() || 'qwen3:4b' })} aria-label="Model" />
+            <input className="input" list="ai-models" defaultValue={ai.model} onBlur={(e) => setAi({ model: e.target.value.trim() || DEFAULT_AI.model })} aria-label="Model" />
             <datalist id="ai-models">
               {[...new Set([...models, ...SUGGESTED_MODELS])].map((m) => <option key={m} value={m} />)}
             </datalist>

@@ -1,7 +1,7 @@
 // Runs the AI eval fixtures (src/ai/eval.ts) against a live Ollama and prints pass rates per model.
 //
-//   node scripts/ai-eval.mjs                         # default model qwen3:4b
-//   node scripts/ai-eval.mjs qwen3:4b gemma3:4b      # compare several
+//   node scripts/ai-eval.mjs                         # default model phi4-mini
+//   node scripts/ai-eval.mjs phi4-mini qwen3:4b      # compare several
 //   OLLAMA_URL=http://localhost:11434 VERBOSE=1 node scripts/ai-eval.mjs
 //
 // Checks per output: valid JSON (matching the schema), citations valid, within length, no
@@ -10,7 +10,7 @@
 import { createServer } from 'vite';
 
 const baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-const models = process.argv.slice(2).length ? process.argv.slice(2) : ['qwen3:4b'];
+const models = process.argv.slice(2).length ? process.argv.slice(2) : ['phi4-mini'];
 const verbose = !!process.env.VERBOSE;
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true } });
