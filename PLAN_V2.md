@@ -443,14 +443,42 @@ Each task prompt carries one short worked example (input and output) built from 
   length, no filtered phrase, and no number or date that is absent from the input. Print a table per model.
 - Target before calling it done: ≥ 90% of fixtures pass every check on the default model. If not reached, say so.
 
-## 6. Phase 5 — docs and wrap-up
+## 6. Phase 5 — experiment mode
+
+Purpose: learn from real testers which items work (section 1.4). Off by default.
+
+- **Where:** data dialog → Advanced options → one checkbox, "Experiment mode".
+- **The one line under it:** "Records every answer, note and click with timestamps in this browser, so you can
+  export it and share it with the research team. Nothing is sent automatically."
+- **Storage:** an append-only event log under its own `localStorage` key, separate from the profile. Cap at 5,000
+  events; at the cap, stop logging and say so. No server (the app has none).
+- **Identity:** a random participant id made when the mode is turned on. The display name is never logged.
+- **Events** (`src/logic/experiment.ts`, one `log(event)` call from the store actions), each with timestamp and id:
+  - session start and end, app version, question-set version, AI on or off and model name;
+  - question shown, answered (value, confidence, milliseconds from shown to answered), changed, cleared, skipped;
+  - "Add a note" used (the text), "Still true" used, depth-gate choice, questionnaire finished or abandoned (at which item);
+  - area opened, note opened, line added, edited, locked or deleted (the text for added and edited lines);
+  - dock tab opened, tension viewed or dismissed, retake accepted or deferred, check-in completed;
+  - Ask question text, whether a reading was requested, AI output shown, and whether it was accepted, edited or rejected.
+- **Export:** "Export experiment log" downloads one JSON file. The normal data export stays separate and unchanged.
+- **Turning it off:** stops logging at once and offers "Delete the log" or "Keep it for export".
+- **Sample profile:** never logged.
+- **Summary script:** `scripts/experiment-summary.mjs` reads one or more exported logs and prints, per item: times
+  shown, answered, skipped, median seconds to answer, share that used "Add a note", share changed on retake. This is
+  the table that decides which items to cut.
+- **Tests:** nothing is logged with the mode off; events are logged with it on; the cap holds; delete empties the key.
+
+Open decision for the owner: logs reach the team by the tester sending the exported file. A collection endpoint
+would need a server, a privacy notice and a stronger consent line; it is out of scope unless asked for.
+
+## 7. Phase 6 — docs and wrap-up
 
 - Rewrite `README.md` (branches, item table, AI setup) and update `SPEC_REVIEW.md` (what Doc 1 gaps are now closed:
   values, self-concept, the monthly check-in, what stayed the same across retakes; what remains: reminders outside the app).
 - Replace `PLAN.md` with a pointer to this file once all phases are done.
 - Final check: fresh journey and sample journey in the e2e script, with AI off and with the fake provider.
 
-## 7. Out of scope
+## 8. Out of scope
 
 Mobile layout, accounts or sync, hosted AI, in-browser models, embeddings-based retrieval, scoring or norms,
 psychologist review of items (still recommended before selling).
