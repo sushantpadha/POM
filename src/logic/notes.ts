@@ -40,7 +40,9 @@ function newEntry(q: Question, text: string, now: string, extra: Partial<Entry> 
 /**
  * Writes one answer into a list of note lines (mutates `entries`). One generated line per
  * question, keyed by its source item id:
- *  - existing generated line → text refreshed, unless locked (then kept and reported)
+ *  - existing unlocked generated line → text refreshed
+ *  - a locked line is never changed: it is kept (and reported) and the new answer goes on a
+ *    line right after it
  *  - lines the user wrote or edited are never touched; a new line goes after an edited one
  *  - an empty note (or no answer) removes the unlocked generated line
  *  - `log` questions append a dated line per check-in; within the same run (lines created
@@ -72,12 +74,15 @@ export function applyAnswer(
     } else if (inRun) {
       anchor = inRun;
       if (inRun.text !== dated) {
-        if (inRun.locked) out.protectedIds.push(inRun.id);
-        else {
+        if (inRun.locked) {
+          out.protectedIds.push(inRun.id);
+          anchor = newEntry(q, dated, now);
+          entries.splice(entries.indexOf(inRun) + 1, 0, anchor);
+        } else {
           inRun.text = dated;
           inRun.updatedAt = now;
-          out.changed = true;
         }
+        out.changed = true;
       }
     } else {
       anchor = newEntry(q, dated, now);
@@ -85,23 +90,32 @@ export function applyAnswer(
       out.changed = true;
     }
   } else {
-    const existing = entries.find((e) => mine(e) && e.provenance !== 'human');
-    if (!text) {
-      if (existing && !existing.locked) {
-        entries.splice(entries.indexOf(existing), 1);
+    const generated = entries.filter((e) => mine(e) && e.provenance !== 'human');
+    const unlocked = generated.find((e) => !e.locked);
+    const lockedLine = [...generated].reverse().find((e) => e.locked);
+    if (!text || (unlocked && lockedLine?.text === text)) {
+      // No answer, or the answer is back to what the locked line already says.
+      if (unlocked) {
+        entries.splice(entries.indexOf(unlocked), 1);
         out.changed = true;
       }
-    } else if (existing) {
-      anchor = existing;
-      if (existing.text !== text) {
-        if (existing.locked) out.protectedIds.push(existing.id);
-        else {
-          existing.text = text;
-          existing.kind = lineKind(q);
-          existing.provenance = 'auto';
-          existing.updatedAt = now;
-          out.changed = true;
-        }
+      anchor = text ? lockedLine : undefined;
+    } else if (unlocked) {
+      anchor = unlocked;
+      if (unlocked.text !== text) {
+        unlocked.text = text;
+        unlocked.kind = lineKind(q);
+        unlocked.provenance = 'auto';
+        unlocked.updatedAt = now;
+        out.changed = true;
+      }
+    } else if (lockedLine) {
+      anchor = lockedLine;
+      if (lockedLine.text !== text) {
+        out.protectedIds.push(lockedLine.id);
+        anchor = newEntry(q, text, now);
+        entries.splice(entries.indexOf(lockedLine) + 1, 0, anchor);
+        out.changed = true;
       }
     } else {
       // A line the user edited from this answer stays; the fresh line goes right after it.
@@ -143,17 +157,17 @@ export function applyAnswer(
 }
 
 /**
- * Build an automatic update from questionnaire responses as a proposal (draft).
- * See `applyAnswer` for the line rules. Questions hidden by a gate are skipped.
+ * Writes all current answers for these questions into a copy of the file's lines (used when a
+ * topic is reset but its answers are kept). See `applyAnswer` for the line rules. Questions
+ * hidden by a gate are skipped. Returns null when nothing would change.
  */
-export function generateUpdate(
+export function regenerate(
   file: NoteFile,
   questions: Question[],
   responses: Record<string, Response>,
-  reason: string,
   now = nowIso(),
   runStart?: string,
-): Proposal | null {
+): { entries: Entry[]; protectedIds: string[] } | null {
   const entries = file.current.entries.map((e) => ({ ...e }));
   const protectedIds: string[] = [];
   let changed = false;
@@ -166,14 +180,7 @@ export function generateUpdate(
     protectedIds.push(...r.protectedIds);
   }
   if (!changed && protectedIds.length === 0) return null;
-  return {
-    versionId: uid('v'),
-    createdAt: now,
-    reason,
-    entries,
-    kind: 'generated-update',
-    protectedIds,
-  };
+  return { entries, protectedIds };
 }
 
 /**

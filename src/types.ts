@@ -119,12 +119,14 @@ export interface FileVersion {
   entries: Entry[];
 }
 
-export type ProposalKind = 'generated-update' | 'summary' | 'reset';
+export type ProposalKind = 'summary' | 'reset';
 
 export interface Proposal extends FileVersion {
   kind: ProposalKind;
-  /** Entry ids an automatic update wanted to change but kept because they are locked. */
+  /** Entry ids kept as they are (locked lines, the user's own lines). */
   protectedIds: string[];
+  /** Reset topic without keeping answers: these answers are deleted when the reset is accepted. */
+  clearsAnswers?: string[];
 }
 
 export interface NoteFile {

@@ -32,7 +32,7 @@ export function FileToolbar({ fileId }: { fileId: string }) {
         className="btn"
         onClick={() => requestSummary(fileId)}
         disabled={!!file.proposal}
-        title={file.proposal ? 'Commit or cancel the current draft first' : 'Draft a shorter version. Your own and locked lines are kept.'}
+        title={file.proposal ? 'Accept or cancel the current draft first' : 'Draft a shorter version. Your own and locked lines are kept.'}
       >
         Summarise
       </button>

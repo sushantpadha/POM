@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, Check, Pencil, X } from 'lucide-react';
+import { Bot, Check, RotateCcw, X } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { diffStats, diffVersions } from '../../logic/notes';
 import { DiffList } from './DiffList';
@@ -17,17 +17,18 @@ export function ProposalView({ fileId }: { fileId: string }) {
   return (
     <div>
       <div className="proposal-bar" role="region" aria-label="Proposed update">
-        {isSummary ? <Bot size={17} style={{ color: 'var(--ai)' }} /> : <Pencil size={16} style={{ color: 'var(--auto)' }} />}
+        {isSummary ? <Bot size={17} style={{ color: 'var(--ai)' }} /> : <RotateCcw size={16} />}
         <div className="t">
-          <b>{isSummary ? 'Draft summary' : `Draft changes — ${proposal.reason}`}</b>
-          Nothing changes until you commit. The current version is kept in history.
+          <b>{isSummary ? 'Draft summary' : 'Reset preview'}</b>
+          Nothing changes until you accept. The current version is kept in history.
           {proposal.protectedIds.length > 0 && ` ${proposal.protectedIds.length} line${proposal.protectedIds.length > 1 ? 's' : ''} kept as written.`}
+          {proposal.clearsAnswers?.length ? ` Accepting also clears ${proposal.clearsAnswers.length} answer${proposal.clearsAnswers.length > 1 ? 's' : ''}.` : ''}
         </div>
         <button className="btn" onClick={() => cancel(fileId)}>
           <X size={13} /> Cancel
         </button>
         <button className="btn primary" onClick={() => commit(fileId)}>
-          <Check size={13} /> Commit
+          <Check size={13} /> Accept
         </button>
       </div>
       {isSummary && (

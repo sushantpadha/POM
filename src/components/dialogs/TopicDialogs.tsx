@@ -15,8 +15,8 @@ function ResetVsErase({ highlight }: { highlight: 'reset' | 'erase' }) {
         <ul>
           <li>Clears generated (pencil) and AI (robot) lines</li>
           <li>Keeps your own and locked lines</li>
-          <li>Keeps answers if you choose, and regenerates notes from them</li>
-          <li>Old version stays in history</li>
+          <li>Keeps answers if you choose, and rewrites notes from them</li>
+          <li>Shown as a preview first; old version stays in history</li>
         </ul>
       </div>
       <div style={highlight === 'erase' ? { borderColor: 'var(--danger)' } : { opacity: 0.6 }}>
@@ -67,8 +67,8 @@ export function ResetDialog({ fileId }: { fileId: string }) {
           <label className="check" style={{ margin: 0 }}>
             <input type="checkbox" checked={retain} onChange={(e) => setRetain(e.target.checked)} />
             <span>
-              <b>Retain my underlying answers ({qids.length})</b> and regenerate notes from them. Untick to also clear these
-              answers{qids.length ? ` (${qids.join(', ')})` : ''}.
+              <b>Keep my answers ({qids.length})</b> and rewrite the notes from them. Untick to also clear these
+              answers{qids.length ? ` (${qids.join(', ')})` : ''} when you accept the reset.
             </span>
           </label>
           {relocked.length > 0 && (
@@ -82,7 +82,7 @@ export function ResetDialog({ fileId }: { fileId: string }) {
         <div className="dialog-foot">
           <button className="btn" onClick={() => setDialog(null)}>Cancel</button>
           <button className="btn primary" onClick={() => resetTopic(fileId, retain)}>
-            Reset topic
+            Preview reset
           </button>
         </div>
       </div>

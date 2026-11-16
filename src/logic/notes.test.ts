@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Entry, NoteFile, Response } from '../types';
 import { QUESTION_BY_ID } from '../data/questions';
 import { sampleFiles, SAMPLE_PROGRESS, SAMPLE_RESPONSES } from '../data/sampleProfile';
-import { applyAnswer, commitVersion, diffVersions, generateUpdate, MAX_HISTORY, summarize, summarizeBranch } from './notes';
+import { applyAnswer, commitVersion, diffVersions, MAX_HISTORY, regenerate, summarize, summarizeBranch } from './notes';
 import { detectTensions } from './tensions';
 import { suggestRetakes } from './retakes';
 import { thenAndNow } from './thenNow';
@@ -41,21 +41,31 @@ describe('file versioning', () => {
 });
 
 describe('writing answers into notes', () => {
-  it('refreshes unlocked lines, protects locked lines and never touches human lines', () => {
+  it('refreshes unlocked lines and never touches human lines', () => {
     const f = file([
       entry('a', 'old M4 text', { sourceItemId: 'M4' }),
-      entry('b', 'locked M2 text', { sourceItemId: 'M2', locked: true }),
       entry('c', 'my own note', { provenance: 'human' }),
     ]);
-    const qs = ['M4', 'M2', 'M1'].map((id) => Q[id]);
-    const p = generateUpdate(f, qs, { M4: r(1), M2: r('plain'), M1: r('talk') }, 'test')!;
-    const byId = Object.fromEntries(p.entries.map((e) => [e.id, e]));
+    const res = regenerate(f, ['M4', 'M1'].map((id) => Q[id]), { M4: r(1), M1: r('talk') })!;
+    const byId = Object.fromEntries(res.entries.map((e) => [e.id, e]));
     expect(byId.a.text).toBe(Q.M4.note(1));
-    expect(byId.b.text).toBe('locked M2 text');
-    expect(p.protectedIds).toEqual(['b']);
     expect(byId.c.text).toBe('my own note');
-    expect(p.entries.some((e) => e.sourceItemId === 'M1' && e.provenance === 'auto')).toBe(true);
-    expect(f.current.entries[0].text).toBe('old M4 text');
+    expect(res.entries.some((e) => e.sourceItemId === 'M1' && e.provenance === 'auto')).toBe(true);
+    expect(f.current.entries[0].text).toBe('old M4 text'); // works on a copy
+  });
+
+  it('never changes a locked line: keeps it and puts the new answer on the line after it', () => {
+    const entries = [entry('b', 'locked M2 text', { sourceItemId: 'M2', locked: true }), entry('x', 'other')];
+    const first = applyAnswer(entries, Q.M2, r('plain'));
+    expect(first.protectedIds).toEqual(['b']);
+    expect(entries.map((e) => e.text)).toEqual(['locked M2 text', Q.M2.note('plain'), 'other']);
+    // A second change updates the new line, not the locked one, and adds nothing.
+    const second = applyAnswer(entries, Q.M2, r('soften'));
+    expect(second.protectedIds).toEqual([]);
+    expect(entries.map((e) => e.text)).toEqual(['locked M2 text', Q.M2.note('soften'), 'other']);
+    // Clearing the answer removes the unlocked line only.
+    applyAnswer(entries, Q.M2, undefined);
+    expect(entries.map((e) => e.id)).toEqual(['b', 'x']);
   });
 
   it('puts a fresh line after a line the user edited from the same answer', () => {

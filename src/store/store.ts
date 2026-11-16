@@ -21,7 +21,7 @@ import {
   SAMPLE_SEEN,
 } from '../data/sampleProfile';
 import { activeTags, availableIds } from '../logic/graph';
-import { commitVersion, generateUpdate, nowIso, summarize, summarizeBranch, uid } from '../logic/notes';
+import { applyAnswer, commitVersion, nowIso, regenerate, summarize, summarizeBranch, uid } from '../logic/notes';
 import { MODEL, nodesForFile, questionsForFile } from './model';
 import { buildExport, type ExportFile, type PortableData } from '../logic/transfer';
 
@@ -62,14 +62,16 @@ interface Actions {
   setUserName: (name: string) => void;
   exportData: () => ExportFile;
   importData: (data: PortableData) => void;
-  setResponse: (qid: string, value: AnswerValue, confidence?: number) => string[];
+  /** Saves an answer and writes its note line at once. Returns the areas it opened and the files it changed. */
+  setResponse: (qid: string, value: AnswerValue, confidence?: number) => { opened: string[]; files: string[] };
   setConfidence: (qid: string, confidence: number) => void;
   /** "Add a note": the user's own one-line words under the generated line. */
-  setAnswerNote: (qid: string, note: string) => void;
+  setAnswerNote: (qid: string, note: string) => string[];
   /** "Still true" on a retake: keeps the value, refreshes the date. */
-  confirmResponse: (qid: string) => void;
-  clearResponse: (qid: string) => void;
-  submitQuestionnaire: (nodeId: string) => { proposalFileIds: string[] };
+  confirmResponse: (qid: string) => string[];
+  clearResponse: (qid: string) => string[];
+  /** Marks a questionnaire run as finished (its Done screen). */
+  finishQuestionnaire: (nodeId: string) => void;
   addEntry: (fileId: string, afterId: string | null, text: string, kind?: EntryKind) => string;
   updateEntry: (fileId: string, entryId: string, text: string, kind?: EntryKind) => void;
   deleteEntry: (fileId: string, entryId: string) => void;
@@ -183,21 +185,52 @@ function available(d: Pick<Data, 'responses' | 'onboardedAt'>) {
 export const useStore = create<Store>()(
   persist(
     immer((set, get) => {
-      /** Manual edits coalesce into one new version per file per browser session. */
-      const editableCurrent = (s: Store, fileId: string) => {
+      /**
+       * Answers and manual edits coalesce into one new version per file per browser session:
+       * the first change copies the current version into history, later ones edit the copy.
+       */
+      const editableCurrent = (s: Store, fileId: string, reason = 'Manual edit') => {
         const file = s.files[fileId];
         if (s.manualVersions[fileId] !== file.current.versionId) {
           const next = {
             versionId: uid('v'),
             createdAt: nowIso(),
-            reason: 'Manual edit',
+            reason,
             entries: file.current.entries.map((e) => ({ ...e })),
           };
           s.files[fileId] = commitVersion(file, next);
           s.files[fileId].proposal = file.proposal; // a pending proposal survives a manual edit
           s.manualVersions[fileId] = next.versionId;
+        } else if (file.current.reason !== reason) {
+          const both = [file.current.reason, reason];
+          file.current.reason = both.every((r) => r.startsWith('Answers')) ? 'Answers' : 'Answers and edits';
         }
         return s.files[fileId].current;
+      };
+
+      /** Writes the current answer to `qid` into each file it names. Returns the files that changed. */
+      const applyToFiles = (s: Store, qid: string): string[] => {
+        const q = MODEL.questions.find((x) => x.id === qid)!;
+        const runStart = s.progress[q.nodeId]?.completedAt;
+        const now = nowIso();
+        const changed: string[] = [];
+        for (const fileId of q.fileIds) {
+          const entries = s.files[fileId].current.entries.map((e) => ({ ...e }));
+          const r = applyAnswer(entries, q, s.responses[qid], now, runStart);
+          if (!r.changed) continue;
+          const cur = editableCurrent(s, fileId, `Answers in ${NODE_BY_ID[q.nodeId].name}`);
+          cur.entries = entries;
+          changed.push(fileId);
+          if (s.files[fileId].proposal) {
+            // A draft made from the old lines would undo this answer if accepted.
+            s.files[fileId].proposal = undefined;
+            pushToast(s, { text: `The draft for ${fileId} was dropped because your answer changed the note.` });
+          }
+          if (r.protectedIds.length) {
+            pushToast(s, { text: `Kept your locked line in ${s.files[fileId].title}. The new answer is on the line after it.` });
+          }
+        }
+        return changed;
       };
 
       const pushToast = (s: Store, t: Omit<Toast, 'id'>) => {
@@ -268,6 +301,7 @@ export const useStore = create<Store>()(
 
         setResponse: (qid, value, confidence) => {
           const before = available(get());
+          let files: string[] = [];
           set((s) => {
             const prev = s.responses[qid];
             const q = MODEL.questions.find((x) => x.id === qid)!;
@@ -282,71 +316,65 @@ export const useStore = create<Store>()(
               note: q.log && newRun ? undefined : prev?.note,
               history: prev && changed ? historyWith(prev, lastCompleted) : prev?.history,
             };
+            files = applyToFiles(s, qid);
             s.progress[q.nodeId] ??= { submissions: [] };
             s.progress[q.nodeId].startedAt ??= nowIso();
           });
           const after = available(get());
-          return [...after].filter((id) => !before.has(id));
+          return { opened: [...after].filter((id) => !before.has(id)), files };
         },
 
-        setAnswerNote: (qid, note) =>
+        setAnswerNote: (qid, note) => {
+          let files: string[] = [];
           set((s) => {
             const r = s.responses[qid];
             if (!r) return;
             const t = note.trim().slice(0, 300);
+            if ((r.note ?? '') === t) return;
             if (t) r.note = t;
             else delete r.note;
-          }),
+            files = applyToFiles(s, qid);
+          });
+          return files;
+        },
 
-        confirmResponse: (qid) =>
+        confirmResponse: (qid) => {
+          let files: string[] = [];
           set((s) => {
             const prev = s.responses[qid];
             if (!prev) return;
             const nodeId = MODEL.questions.find((q) => q.id === qid)!.nodeId;
             prev.history = historyWith(prev, s.progress[nodeId]?.completedAt);
             prev.answeredAt = nowIso();
-          }),
+            // A check-in answer that is still true is logged again with this month's date.
+            files = applyToFiles(s, qid);
+          });
+          return files;
+        },
 
         setConfidence: (qid, confidence) =>
           set((s) => {
             if (s.responses[qid]) s.responses[qid].confidence = confidence;
           }),
 
-        clearResponse: (qid) =>
+        clearResponse: (qid) => {
+          let files: string[] = [];
           set((s) => {
+            if (!s.responses[qid]) return;
             delete s.responses[qid];
-          }),
+            files = applyToFiles(s, qid); // removes the line if it is unlocked and unedited
+          });
+          return files;
+        },
 
-        submitQuestionnaire: (nodeId) => {
-          const proposalFileIds: string[] = [];
+        finishQuestionnaire: (nodeId) =>
           set((s) => {
             const now = nowIso();
             s.progress[nodeId] ??= { submissions: [] };
-            const p = s.progress[nodeId];
-            const runStart = p.completedAt;
-            p.completedAt = now;
-            p.submissions.push(now);
-            const node = NODE_BY_ID[nodeId];
-            const qs = MODEL.questionsByNode[nodeId];
-            // Each answer updates the file(s) its question names, so one submission can touch several files.
-            const fileIds = [...new Set(qs.flatMap((q) => q.fileIds))];
-            for (const fileId of fileIds) {
-              const proposal = generateUpdate(
-                s.files[fileId],
-                qs.filter((q) => q.fileIds.includes(fileId)),
-                s.responses,
-                `Answers in ${node.name}${p.submissions.length > 1 ? ' (retake)' : ''}`,
-                now,
-                runStart,
-              );
-              if (proposal) {
-                s.files[fileId].proposal = proposal;
-                proposalFileIds.push(fileId);
-              }
-            }
-          });
-          return { proposalFileIds };
-        },
+            s.progress[nodeId].startedAt ??= now;
+            s.progress[nodeId].completedAt = now;
+            s.progress[nodeId].submissions.push(now);
+          }),
 
         addEntry: (fileId, afterId, text, kind = 'li') => {
           const id = uid('e');
@@ -393,10 +421,14 @@ export const useStore = create<Store>()(
           set((s) => {
             const file = s.files[fileId];
             if (!file.proposal) return;
-            const { kind: _k, protectedIds: _p, ...version } = file.proposal;
+            const { kind, protectedIds: _p, clearsAnswers, ...version } = file.proposal;
+            if (clearsAnswers?.length) {
+              clearsAnswers.forEach((qid) => delete s.responses[qid]);
+              clearEmptyProgress(s, nodesForFile(fileId));
+            }
             s.files[fileId] = commitVersion(file, version);
             delete s.manualVersions[fileId];
-            pushToast(s, { text: `Saved a new version of ${fileId}.` });
+            pushToast(s, { text: kind === 'reset' ? `Reset ${fileId}. The previous version is still in history.` : `Saved a new version of ${fileId}.` });
           }),
 
         cancelProposal: (fileId) =>
@@ -442,23 +474,29 @@ export const useStore = create<Store>()(
 
         resetTopic: (fileId, retainResponses) =>
           set((s) => {
+            // A preview: nothing changes (and no answer is deleted) until the reset is accepted.
             const file = s.files[fileId];
             const now = nowIso();
             const kept = file.current.entries.filter((e) => e.locked || e.provenance === 'human');
             const qs = questionsForFile(fileId);
-            if (!retainResponses) {
-              qs.forEach((q) => delete s.responses[q.id]);
-              clearEmptyProgress(s, nodesForFile(fileId));
-            }
-            let next = { versionId: uid('v'), createdAt: now, reason: 'Topic reset', entries: kept };
+            let entries = kept;
+            let reason = 'Topic reset';
             if (retainResponses) {
-              const regen = generateUpdate({ ...file, current: next }, qs, s.responses, 'Topic reset (regenerated from retained responses)', now);
-              if (regen) next = { versionId: regen.versionId, createdAt: now, reason: regen.reason, entries: regen.entries };
+              const regen = regenerate({ ...file, current: { ...file.current, entries: kept.map((e) => ({ ...e })) } }, qs, s.responses, now);
+              if (regen) entries = regen.entries;
+              reason = 'Topic reset (rewritten from your answers)';
             }
-            s.files[fileId] = commitVersion(file, next);
-            delete s.manualVersions[fileId];
+            s.files[fileId].proposal = {
+              versionId: uid('v'),
+              createdAt: now,
+              reason,
+              entries,
+              kind: 'reset',
+              protectedIds: kept.map((e) => e.id),
+              clearsAnswers: retainResponses ? undefined : qs.filter((q) => s.responses[q.id]).map((q) => q.id),
+            };
+            s.fileModes[fileId] = 'notes';
             s.dialog = null;
-            pushToast(s, { text: `Reset ${fileId}. The previous version is still in history.` });
           }),
 
         eraseTopic: (fileId) =>

@@ -13,11 +13,10 @@ const nodeClass = (page, id) => page.getAttribute(`[data-node="${id}"]`, 'class'
 const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${process.env.SHOTS}/${name}.png` });
 const steps = (page) => page.$$eval('.qn-steps button', (n) => n.length - 1); // minus the review step
 const step = (page, i) => page.click(`.qn-steps button >> nth=${i}`);
-const toReview = (page) => page.click('.qn-steps button[aria-label="Review and save"]');
-const saveAndOpen = async (page, fileId) => {
-  await toReview(page);
-  await page.click('.qn-foot button.primary');
-  await page.click(`.done-section .link-row:has-text("${fileId}")`);
+const toDone = (page) => page.click('.qn-steps button[aria-label="Done"]');
+const doneAndOpen = async (page, fileId) => {
+  await toDone(page);
+  await page.click(`[data-changed-file="${fileId}"]`);
 };
 
 (async () => {
@@ -66,9 +65,11 @@ const saveAndOpen = async (page, fileId) => {
   assert(await page.isDisabled('.chip-opt:has-text("Adventure")'), 'P3 allows at most three picks');
   assert(await page.isVisible('.unlock-callout:has-text("What I’d Trade")'), 'P3 (#values) opens What I’d Trade');
   await shot(page, '04-multi');
-  await saveAndOpen(page, 'priorities/main');
-  assert(await page.isVisible('.proposal-bar'), 'note changes shown as a draft first');
-  await page.click('.proposal-bar button:has-text("Commit")');
+  await toDone(page);
+  assert(await page.isVisible('[data-changed-file="priorities/main"]'), 'Done screen lists the notes that changed');
+  await shot(page, '04b-done');
+  await page.click('[data-changed-file="priorities/main"]');
+  assert(!(await page.isVisible('.proposal-bar')), 'answers are in the notes at once, with no draft step');
   assert(await page.isVisible('.entry-text:has-text("When two things I want clash, family usually wins.")'), 'P1 note reads as a sentence');
   assert(await page.isVisible('.entry-text:has-text("What matters most to me: choosing my own way, security and close relationships.")'), 'P3 note lists the picks');
 
@@ -90,15 +91,14 @@ const saveAndOpen = async (page, fileId) => {
   assert(await page.isVisible('.last-time:has-text("Family")'), 'a retake shows the last answer');
   await page.click('.last-time button:has-text("Still true")');
   await page.click('.rank-item >> nth=0 >> button[aria-label="Move down"]'); // P2 changed
-  await toReview(page);
-  await page.click('.qn-foot button.primary');
+  assert(await page.isVisible('.toast:has-text("Kept your locked line")'), 'changing a locked answer says the locked line was kept');
+  await toDone(page);
   assert((await page.textContent('[data-then-now] [data-same]')) === '1', 'Done screen: same as last time 1 (P1 still true)');
   assert(await page.isVisible('.then-now li:has-text("Work or studies")'), 'Done screen lists the changed answer old → new');
   await shot(page, '06-then-now');
-  await page.click('.done-section .link-row:has-text("priorities/main")');
-  assert(await page.isVisible('.diff-tag:has-text("locked")'), 'locked line kept in the new draft');
-  await page.click('.proposal-bar button:has-text("Cancel")');
-  assert(!(await page.isVisible('.proposal-bar')), 'cancel discards the draft');
+  await page.click('[data-changed-file="priorities/main"]');
+  const p2lines = await page.$$eval('.entry-text', (n) => n.filter((x) => x.textContent.startsWith('Over the next few years')).map((x) => x.textContent));
+  assert(p2lines.length === 2 && p2lines[0].includes('work or studies, then family') && p2lines[1].includes('family, then work'), 'locked line kept, new answer on the line after it');
 
   // Moral Principles: M5 opens Family Duty
   await page.click('.tab:has-text("Graph")');
@@ -122,8 +122,7 @@ const saveAndOpen = async (page, fileId) => {
   await step(page, 2);
   await page.click('.choice:has-text("Narrowing down a few")');
   assert(await page.isVisible('.unlock-callout:has-text("Work & Study Path")'), 'G3 (#career) opens Work & Study Path');
-  await toReview(page);
-  await page.click('.qn-foot button.primary');
+  await toDone(page);
 
   // Depth gate in Work & Study Path
   await page.click('.done-section .link-row:has-text("Work & Study Path")');
@@ -136,10 +135,9 @@ const saveAndOpen = async (page, fileId) => {
   await shot(page, '07-gate');
 
   await page.click('[data-file="goals/main"]');
-  await page.click('.proposal-bar button:has-text("Commit")');
   await page.click('.file-toolbar button:has-text("Summarise")');
-  assert(await page.isVisible('.proposal-bar:has-text("Draft summary")'), 'main file summary drafted');
-  await page.click('.proposal-bar button:has-text("Commit")');
+  assert(await page.isVisible('.proposal-bar:has-text("Draft summary")'), 'a summary is still a draft to accept or cancel');
+  await page.click('.proposal-bar button:has-text("Accept")');
   await page.click('.seg button:has-text("History")');
   await shot(page, '08-history');
 
@@ -178,11 +176,9 @@ const saveAndOpen = async (page, fileId) => {
   await clickNode(page, 'checkin');
   await page.click('.context-panel button:has-text("Retake")');
   await page.click('.last-time button:has-text("Still true")');
-  await toReview(page);
-  await page.click('.qn-foot button.primary');
+  await toDone(page);
   assert((await page.textContent('[data-then-now] [data-same]')) === '1', 'check-in Done screen: same as last time 1');
-  await page.click('.done-section .link-row:has-text("check-ins/log")');
-  await page.click('.proposal-bar button:has-text("Commit")');
+  await page.click('[data-changed-file="check-ins/log"]');
   const workLines = await page.$$eval('.entry-text', (n) => n.filter((x) => x.textContent.includes('Most of my time went to work or studies')).length);
   assert(workLines === 4, `check-in log keeps one dated line per month (${workLines})`);
 
@@ -191,16 +187,16 @@ const saveAndOpen = async (page, fileId) => {
   await clickNode(page, 'clashes');
   await page.click('.context-panel button:has-text("Answer questions")');
   await page.click('.choice:has-text("Take it") >> nth=0');
-  await saveAndOpen(page, 'priorities/trade-offs');
-  await page.click('.proposal-bar button:has-text("Commit")');
   await page.click('.fab[aria-label="Potential tensions"]');
-  assert(await page.isVisible('[data-tension="take-opportunity-vs-people-first"]'), 'committing the PC1 note surfaces a new tension');
+  assert(await page.isVisible('[data-tension="take-opportunity-vs-people-first"]'), 'answering PC1 surfaces a new tension at once');
   await page.click('.fab[aria-label="Potential tensions"]');
 
   await page.click('[data-file="goals/work-and-study"]');
   await page.click('button:has-text("Reset topic…")');
   await shot(page, '14-reset');
-  await page.click('.dialog button:has-text("Reset topic")');
+  await page.click('.dialog button:has-text("Preview reset")');
+  assert(await page.isVisible('.proposal-bar:has-text("Reset preview")'), 'reset is previewed first');
+  await page.click('.proposal-bar button:has-text("Accept")');
   assert(await page.isVisible('.entry-text:has-text("Offer deadline")'), 'reset keeps your own lines');
   await page.click('button:has-text("Erase topic data…")');
   assert(await page.isDisabled('.dialog button:has-text("Erase topic data")'), 'erase needs confirmation');

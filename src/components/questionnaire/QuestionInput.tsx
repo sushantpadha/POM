@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { AnswerValue, Option, ProjectAnswer, Question, Response } from '../../types';
 import { LIKERT_LABELS } from '../../data/questions';
@@ -155,20 +155,37 @@ function TextAnswer({ value, placeholder, onAnswer }: { value: string; placehold
   );
 }
 
+/**
+ * A 0–10 slider. The number follows the thumb while dragging, but the answer is saved only on
+ * release (the native `change` event: mouse up, touch end, or a key press).
+ */
 function RangeRow({ label, value, onChange }: { label?: string; value?: number; onChange: (n: number) => void }) {
+  const [live, setLive] = useState<number | undefined>(value);
+  const ref = useRef<HTMLInputElement>(null);
+  const commit = useRef(onChange);
+  commit.current = onChange;
+  useEffect(() => setLive(value), [value]);
+  useEffect(() => {
+    const el = ref.current!;
+    const onCommit = () => commit.current(Number(el.value));
+    el.addEventListener('change', onCommit);
+    return () => el.removeEventListener('change', onCommit);
+  }, []);
   return (
     <div className="slider-row">
       {label && <span className="slider-label">{label}</span>}
       <input
+        ref={ref}
         type="range"
         min={0}
         max={10}
-        value={value ?? 5}
-        className={value === undefined ? 'unset' : ''}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={live ?? 5}
+        className={live === undefined ? 'unset' : ''}
+        onInput={(e) => setLive(Number((e.target as HTMLInputElement).value))}
+        onChange={() => {}}
         aria-label={label ?? 'Rating'}
       />
-      <span className="slider-val">{value === undefined ? '–' : value}</span>
+      <span className="slider-val">{live === undefined ? '–' : live}</span>
     </div>
   );
 }
