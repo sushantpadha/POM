@@ -1,6 +1,6 @@
 # POM v2 — implementation plan
 
-Three goals: (A) five-branch question set of ~65 items, (B) calmer, more readable UI, (C) real local AI through
+Three goals: (A) five-branch question set of 63 items plus a monthly check-in, (B) calmer, more readable UI, (C) real local AI through
 Ollama. Decisions already made by the owner are marked **Decided**. Work the phases in order; each phase ends with
 `npm run typecheck`, `npm test` and `node scripts/e2e-journey.cjs` green.
 
@@ -19,31 +19,83 @@ Ollama. Decisions already made by the owner are marked **Decided**. Work the pha
 - Items are our own wording. "Adapted" = paraphrase of a published item; "informed" = our wording on a published
   construct. No instrument is given in full and nothing is scored. Do not copy item text from VIA, MFQ, PVQ or MLQ.
 
-## 1. Principles for questions (from a real goal-setting session)
+## 1. Who the questions are for
 
-These came from a human journalling session and override "completeness" whenever they conflict.
+A user is a tuple: (temperament, position in life, appetite for writing). Three characteristic users were walked
+through the first draft of the item set. These are simulated walk-throughs, not user tests; see 1.4.
 
-1. **Ask the priority question first.** "When two goals clash, which gives way?" settled most later trade-offs.
-2. **The user sets the depth.** Before follow-ups in an area, ask: settled, simple, or worth exploring. Only
-   "worth exploring" shows the follow-ups.
-3. **Confirm stored facts before reusing them.** On a retake, show the previous answer with "Still true".
-4. **Ask for conditions, not only rankings.** "B beats A only if X, Y, Z" was the most useful output.
-5. **Other people's choices create scenarios.** Let the user list them in plain text.
-6. **Interpretation is opt-in.** State what the user said. Never volunteer readings of their psychology.
-7. **Fewer, sharper questions.** Prefer a question that changes a decision over one that completes a picture.
-8. **Optional areas are one checklist with a "none" option**, not a series of open prompts.
+### 1.1 Three users
+
+| | A — the decider | B — the reflector | C — the re-evaluator |
+| --- | --- | --- | --- |
+| Temperament | Pragmatic, steady, impatient with depth ("it ain't that deep") | Introspective, unsure, sensitive to being judged | Steady, slightly adrift, time-poor |
+| Position | ~20, student with a first job in sight; choices about path, city, partner | ~17, still at home; few decisions are theirs yet | ~29, some years into work; a change is coming (move, marriage, ageing parents) |
+| Writing | Taps freely; writes one line when it bears on a decision | Already journals; will write a paragraph if invited | Taps; a minute a month at most |
+| Needs | Which goal wins, under what conditions, in which scenarios, and when to look again | Words for what they think versus what family thinks; to see themselves change | To check whether life matches what they said matters; to see what stayed the same |
+| Turned off by | Abstract statements, "why" probes, being asked the same thing three ways | Work and money vocabulary, anything that reads like a verdict | Long text boxes, a quiz with no follow-through |
+
+**Primary user: A and C.** Someone near a decision or a change who will tap readily and write one line when it
+matters. Design every item for them. B is served by the same items plus room to write more (1.3).
+
+### 1.2 What the walk-throughs found in the first draft
+
+1. **Statements nobody disagrees with.** "If an action could harm an innocent other, it should not be done" and
+   "I want to support my parents later in life" get the same answer from almost everyone. They say nothing and
+   never change. Replaced by choices where a sensible person could pick either side.
+2. **Abstract where it should be concrete.** Worldview and Moral read like a psychology test. A shrugged; C tapped
+   through without thinking. Moral items are now small situations (a friend doing wrong, an honest opinion).
+3. **One life stage's vocabulary.** "Role", "career", "project" lost B. Now "work or studies", "opportunity",
+   "the main thing you are working toward".
+4. **The same thing asked three ways.** Importance sliders, a values pick and a ranking all asked "what matters".
+   Two near-identical family-versus-opportunity items. Cut to one each.
+5. **Ten years is too far.** B cannot picture it and A would not commit. Now "an ordinary good day five years from now".
+6. **Nothing to come back to.** The draft was answer-once. C needs a one-minute check-in and a plain
+   "same as last time / changed" on every retake. This is what makes the record a constant to measure against.
+7. **Notes that read like data.** "Most people can be trusted: Agree" is not worth re-reading. Every `note()` must
+   produce a sentence the person could have written: "I mostly trust people."
+
+### 1.3 Rules every item must pass
+
+1. Answered in under ten seconds by a tap, or in one line of text.
+2. A sensible person could sit at either end.
+3. The note it writes is worth re-reading in a year.
+4. It makes sense at 17, 21 and 30, or it sits behind a gate.
+5. It belongs to exactly one branch (table in 2.2).
+6. At most two text items in a node outside a gate, and every item can be skipped.
+
+Design rules from the goal-setting session, kept:
+
+- Ask the priority question first; it settles most later trade-offs. Priorities is marked "Start here" on the map.
+- The user sets the depth: "settled / simple / worth exploring" gates the follow-ups in an area.
+- Ask for conditions, not only rankings. Let the user list scenarios when someone else's choice decides.
+- Optional areas are one checklist with "none of these".
+- No item asks "why" about motives. Interpretation is opt-in.
+
+Two features serve all three users and replace extra questions:
+
+- **"Add a note" on every question** (collapsed link). A one-line answer in the user's own words, saved under the
+  generated line as their own. B writes; A uses it for "it depends"; C ignores it.
+- **Then and now.** A retake shows "Last time: … [Still true]". The Done screen lists "Same as last time: N" and each
+  change as old → new. Rule-based, no AI.
+
+### 1.4 Before selling
+
+Have three to five real people matching A, B and C do the full set while thinking aloud, and cut or reword any item
+that gets a shrug, a "what does this mean" or a skipped text box. Psychologist review is still recommended.
 
 ## 2. Phase 1 — data model and question set
 
 ### 2.1 Type changes (`src/types.ts`)
 
 - `Branch = 'root' | 'worldview' | 'moral' | 'priorities' | 'identity' | 'goals'`.
-- `NoteFile.dir = 'worldview' | 'moral' | 'priorities' | 'identity' | 'goals'`.
+- `NoteFile.dir = 'worldview' | 'moral' | 'priorities' | 'identity' | 'goals' | 'check-ins'`.
 - `QuestionType` gains `'multi'` (multi-select, optional `max`, optional "None of these"). Answer value: `string[]`.
 - `Question.showIf?: (responses) => boolean` — hidden questions are skipped by the runner and by progress counts.
 - `Question.tagsFor?: (value) => string[]` — value-dependent tags. When present it replaces `selfTags` for
   activation; `selfTags` stays the static superset used to derive graph edges and DAG validation.
-- Update `logic/graph.ts` (activation, progress, exploration) and its tests for both additions.
+- `Question.log?: boolean` — each answer appends a dated line instead of replacing the previous one (check-in).
+- `Response.note?: string` — the optional "Add a note" text; written as a human-provenance line under the answer.
+- Update `logic/graph.ts` (activation, progress, exploration) and its tests for these additions.
 - Bump the persisted-store version in `store/store.ts`; on mismatch, start empty.
 
 ### 2.2 Branch test (keeps branches distinct)
@@ -62,117 +114,65 @@ Each branch node opens from `#onboarded`. Deeper nodes use OR on parent tags, as
 
 | Node id | Name | Opened by | Writes to |
 | --- | --- | --- | --- |
-| `worldview` | Worldview & Beliefs | onboarded | `worldview/main`, topic files below |
-| `agency` | Control & Luck | `agency` | `worldview/control-and-luck` |
-| `society` | People & Society | `trust`, `world` | `worldview/people-and-society` |
-| `moral` | Moral Principles | onboarded | `moral/main`, topic files below |
-| `harm` | Harm & Rules | `harm`, `relativism` | `moral/harm-and-rules` |
-| `fairness` | Fairness & Loyalty | `honesty`, `judging` | `moral/fairness-and-loyalty` |
-| `family` | Family Duty | `family-duty` (M5) **or** `relationships` (G2, G4) | `moral/family-duty` |
-| `priorities` | Personal Priorities | onboarded | `priorities/main` |
-| `values` | What I Value | `values` | `priorities/values` |
-| `clashes` | When Priorities Clash | `priority` (P1) **or** `filial-limits` (MD3) **or** `work-cost` (GC4) | `priorities/trade-offs` |
+| `priorities` | Personal Priorities (Start here) | onboarded | `priorities/main` |
+| `trades` | What I'd Trade | `values`, `money` | `priorities/trade-offs` |
+| `clashes` | When Priorities Clash | `priority` (P1) **or** `filial-limits` (MD3) **or** `work-cost` (GC5) | `priorities/trade-offs` |
+| `checkin` | Monthly Check-in | `life-areas` (P2) | `check-ins/log` |
+| `goals` | Goals & Aspirations | onboarded | `goals/main` |
+| `career` | Work & Study Path | `career` | `goals/work-and-study` |
+| `home` | Relationships & Home | `relationships`, `future` | `goals/relationships-and-home` |
+| `more` | Other Areas | `more-areas` (G6, any pick) | `goals/main` |
 | `identity` | Identity & Self-concept | onboarded | `identity/main` |
 | `tendencies` | How I Tend to Be | `self-image`, `clarity` | `identity/tendencies` |
-| `becoming` | Who I Want to Be | `ideal-self`, `strengths` | `identity/becoming` |
-| `goals` | Goals & Aspirations | onboarded | `goals/main` |
-| `career` | Career Path | `career` | `goals/career` |
-| `home` | Relationships & Home | `relationships` | `goals/relationships-and-home` |
-| `more` | Other Areas | `more-areas` (G5, any pick) | `goals/main` |
+| `becoming` | Who I Want to Be | `strengths`, `roles` | `identity/becoming` |
+| `worldview` | Worldview & Beliefs | onboarded | `worldview/main` |
+| `control` | Control & Change | `agency` | `worldview/control-and-change` |
+| `society` | People & Belief | `trust`, `world` | `worldview/people-and-belief` |
+| `moral` | Moral Principles | onboarded | `moral/main` |
+| `rules` | Rules & Exceptions | `honesty`, `judging`, `relativism` | `moral/rules-and-exceptions` |
+| `fairness` | Fairness & Loyalty | `loyalty` | `moral/fairness-and-loyalty` |
+| `family` | Family Duty | `family-duty` (M5) **or** `relationships` (G4) | `moral/family-duty` |
 
-`W4` also needs `worldview/knowledge`. 16 files in total: one `main` per branch plus the topic files above.
+`checkin` is not part of any branch: neutral colour, and its file sits at the top of the tree.
 
-### 2.4 Items (65 core + 4 opt-in)
+### 2.4 Items
 
-Formats: L = 5-point agree/disagree, C = pick one, M = pick several, R = rank, S = 0–10 slider, T = short text.
-St/Fl = stable/flexible. `+c` = also ask confidence. Existing items keep their wording; old id in brackets.
+63 branch items, a 4-item monthly check-in and 4 opt-in one-liners. A first visit shows only the five entry nodes
+(24 items, about two minutes each); the rest opens from answers.
 
-**Worldview & Beliefs (13)**
+Formats: L = 5-point agree/disagree, C = pick one, M = pick several, R = rank, S = 0–10 slider, T = one line of text.
+St/Fl = stable/flexible. `+c` = also ask confidence. Old id in brackets where the item is carried over.
 
-| Id | Node | Item | Fmt | Tag | Type | Source |
-| --- | --- | --- | --- | --- | --- | --- |
-| W1 | worldview | My own choices matter more than luck or circumstances in shaping my life. [W1] | L | agency | St | adapted, locus of control |
-| W2 | worldview | Most people can be trusted. | L | trust | St | informed, generalised trust |
-| W3 | worldview | On the whole, the world is more good than dangerous. | L | world | St | informed, primal world beliefs |
-| W4 | worldview | When I need to decide what is true, I mostly rely on: experts, my own experience, family or tradition, intuition, texts. [W2] | R | knowledge | St | new |
-| W5 | worldview | Name one belief you've changed in the last two years. [W4] | T | worldview | Fl | new |
-| WA1 | agency | Which is closer to what you believe? (pair) [PA1] | C | agency-belief | St | adapted, Rotter |
-| WA2 | agency | Which is closer to what you believe? (pair) [PA2] | C | agency-belief | St | adapted, Rotter |
-| WA3 | agency | People can change who they are in important ways. | L | agency-belief | St | informed, mindset |
-| WA4 | agency | Think of something that went well recently. How much was you, and how much was luck or help? [PA3] | S | agency-belief | Fl | new |
-| WS1 | society | In the long run, people get what they deserve. | L | society | St | informed, just-world belief |
-| WS2 | society | People are mostly shaped by: their upbringing and surroundings / their own choices / what they are born with. | C | society | St | new |
-| WS3 | society | Relationships last because people work at them, not because of luck or fate. | L | society | St | new |
-| WS4 | society | Religion or spirituality in how I understand the world: central / some part / little or none. | C | society | St | new |
-
-**Moral Principles (15)**
+**Personal Priorities (10)**
 
 | Id | Node | Item | Fmt | Tag | Type | Source |
 | --- | --- | --- | --- | --- | --- | --- |
-| M1 | moral | If an action could harm an innocent other, then it should not be done. [E1] | L | harm | St | adapted, EPQ-5 |
-| M2 | moral | What is ethical depends on the situation and culture; no rule applies everywhere. [E2] | L | relativism | St | adapted, EPQ-5 |
-| M3 | moral | What matters most when you judge whether an action was right: its consequences, a rule or principle, the intentions behind it, or fairness to everyone? [E5] | R | judging | St | new |
-| M4 | moral | Honesty matters even when the truth hurts someone. | L | honesty | St | new |
-| M5 | moral | How much do you feel you owe your elders in time, money or career decisions? [E4] | S +c | family-duty | Fl | new |
-| MH1 | harm | It is never acceptable to risk harming another person, however small the risk. [MP1] | L | harm-rules | St | adapted, EPQ-5 |
-| MH2 | harm | Whether a lie is wrong depends on the circumstances around it. [MP3] | L | harm-rules | St | adapted, EPQ-5 |
-| MH3 | harm | Would you break a promise to prevent minor harm to a stranger? Why or why not? [E3] | T | harm-rules | St | new |
-| MF1 | fairness | A fair split is: equal for everyone / by effort / by need. | C | fairness | St | informed, moral foundations |
-| MF2 | fairness | I should stand by my family or group even when they are in the wrong. | L | fairness | St | informed, moral foundations |
-| MF3 | fairness | Rules and people in authority should be respected even when I disagree. | L | fairness | St | informed, moral foundations |
-| MF4 | fairness | How much responsibility do you have toward people outside your family or community? [W3] | S | fairness | St | new |
-| MD1 | family | I want to support my parents later in life because of what they have given me. [FR1] | L | filial | St | informed, dual filial piety |
-| MD2 | family | Children should go along with their parents' wishes on major life decisions, even when they disagree. [FR2] | L | filial | St | informed, dual filial piety |
-| MD3 | family | Is there a limit to what you owe your family? Where would you draw it? [FR3] | T | filial-limits | Fl | new |
+| P1 | priorities | When two things you want clash, which usually wins? partner or close relationships / family / work or studies / where I live / money / it depends | C | priority | St | new |
+| P2 | priorities | Rank these by the attention you want to give them over the next few years: work or studies, family, partner, friends, health, learning and hobbies. [G5] | R | life-areas | Fl | new |
+| P3 | priorities | Pick up to three that matter most to you: choosing my own way, achievement, security, close relationships, helping others, creativity, tradition, enjoyment, influence, adventure. | M (3) | values | St | informed, Schwartz values |
+| P4 | priorities | What is money mainly for? comfort / security / a scoreboard / freedom to change paths later / providing for others | C | money | St | new |
+| P5 | priorities | Pick the two things you most want from work or studies: interesting problems, growth, money, prestige, impact, stability, flexibility. | M (2) | work-values | Fl | new |
+| PT1 | trades | I would rather have: more money and less free time / less money and more free time. | C | trade | Fl | new |
+| PT2 | trades | I would rather have: a stable, predictable life / an open, changing life. | C | trade | St | new |
+| PT3 | trades | I would rather be: near the people I love / where the best opportunities are. | C | trade | Fl | new |
+| PC1 | clashes | An important opportunity would mean seeing your family much less for several years. You would most likely: take it / take it for a limited time / turn it down. [CA1] | C | tradeoff | Fl | new |
+| PC2 | clashes | Is there an option you rank lower that would win under certain conditions? Name it and the conditions. | T | tradeoff | Fl | new |
 
-**Personal Priorities (12)**
+**Goals & Aspirations (14 + 4 opt-in)**
 
 | Id | Node | Item | Fmt | Tag | Type | Source |
 | --- | --- | --- | --- | --- | --- | --- |
-| P1 | priorities | When two things you want clash, which usually wins? relationships / career / where I live / family / money / it depends | C | priority | St | new |
-| P2 | priorities | Rate how important each is to you: financial success, close relationships, personal growth, recognition, community. [G3] | 5×S | values | St | adapted, Aspiration Index |
-| P3 | priorities | Rank these areas by how much attention you want to give them over the next ten years. [G5] | R | life-areas | Fl | new |
-| P4 | priorities | Pick the two things you most want from work: fun problems, growth, money, prestige, impact, stability, flexibility. | M (2) | work-values | Fl | new |
-| P5 | priorities | What is money mainly for? comfort / security / a scoreboard / freedom to change paths later / providing for others | C | money | St | new |
-| PV1 | values | Which of these matter most to you? Pick up to three: choosing my own way, achievement, security, close relationships, helping others, creativity, tradition, enjoyment, influence, adventure. | M (3) | value-pick | St | informed, Schwartz values |
-| PV2 | values | Which of the same list matters least? | C | value-pick | St | informed, Schwartz values |
-| PV3 | values | I would rather have: more money and less free time / less money and more free time. | C | value-pick | Fl | new |
-| PC1 | clashes | If an important opportunity meant seeing your family much less for several years, you would most likely… [CA1] | C | tradeoff | Fl | new |
-| PC2 | clashes | Would you take a better role if it cost time with the people closest to you? yes / only for a while / no | C | tradeoff | St | new |
-| PC3 | clashes | Is there an option you rank lower that would win under certain conditions? Which conditions? | T | tradeoff | Fl | new |
-| PC4 | clashes | This past month, how well did your time match your priorities? | S +c | tradeoff | Fl | new |
-
-**Identity & Self-concept (13)**
-
-| Id | Node | Item | Fmt | Tag | Type | Source |
-| --- | --- | --- | --- | --- | --- | --- |
-| I1 | identity | Describe yourself in three words. | T | self-image | St | new |
-| I2 | identity | I have a clear sense of who I am. | L | clarity | St | informed, self-concept clarity |
-| I3 | identity | Which roles matter most to who you are? Pick up to three: student, professional, son or daughter, sibling, partner, parent, friend, builder or creator, member of a community or faith. | M (3) | roles | Fl | new |
-| I4 | identity | Pick three strengths: curiosity, persistence, kindness, honesty, humour, leadership, creativity, calm under pressure, fairness, discipline, courage, good with people. | M (3) | strengths | St | new |
-| I5 | identity | One thing about yourself you would like to change. | T | ideal-self | Fl | new |
-| IT1 | tendencies | I get energy from being around people. | L | tendency | St | informed, IPIP |
-| IT2 | tendencies | I like trying new and unfamiliar things. | L | tendency | St | informed, IPIP |
-| IT3 | tendencies | I plan ahead and finish what I start. | L | tendency | St | informed, IPIP |
-| IT4 | tendencies | I worry about things a lot. | L | tendency | St | informed, IPIP |
-| IT5 | tendencies | I would rather keep the peace than win an argument. | L | tendency | St | informed, IPIP |
-| IB1 | becoming | How close are you today to the person you want to be? | S +c | becoming | Fl | informed, self-discrepancy |
-| IB2 | becoming | What does that person do that you don't yet? | T | becoming | Fl | new |
-| IB3 | becoming | People close to me see me the way I see myself. | L | becoming | St | new |
-
-**Goals & Aspirations (12 + 4 opt-in)**
-
-| Id | Node | Item | Fmt | Tag | Type | Source |
-| --- | --- | --- | --- | --- | --- | --- |
-| G1 | goals | Describe one project you are working on. How important is it? How much control do you have over it? [G1] | T + 2×S | career | Fl | adapted, Personal Projects Analysis |
-| G2 | goals | Picture yourself in 10 years, with things having gone well. What are you doing? [G2] | T | career, relationships | Fl | adapted, Best Possible Self |
-| G3 | goals | Your career path right now: still choosing / narrowing down a few / settled. | C | career | Fl | new |
-| G4 | goals | What kind of family or relationship life do you want in the future? [G4] | T | relationships | Fl | new |
-| G5 | goals | Want to look at any of these? Money goals, ageing parents, health, starting something of my own, none of these. | M | `more-areas` via `tagsFor` (not for "none") | Fl | new |
-| GC1 | career | Is your career direction settled, simple (just needs doing), or worth exploring? | C | career-depth | Fl | new |
+| G1 | goals | What is the main thing you are working toward right now? How much of it is in your control? [G1] | T + S | career | Fl | adapted, Personal Projects Analysis |
+| G2 | goals | Picture an ordinary good day five years from now. Where are you, who is around, what are you doing? [G2] | T | future | Fl | adapted, Best Possible Self |
+| G3 | goals | Your work or study path right now: still choosing / narrowing down a few / settled. | C | career | Fl | new |
+| G4 | goals | Which of these do you want in your life in five years? a partner I live with, marriage, children, living near my parents, close friends nearby, living abroad for a while, not sure yet. | M | relationships | Fl | new |
+| G5 | goals | Is there an upcoming event that could change these answers (results, an offer, a move)? Optional. | T | goals | Fl | new |
+| G6 | goals | Want to look at any of these? money goals, ageing parents, health, starting something of my own, none of these. | M | `more-areas` via `tagsFor` (not for "none") | Fl | new |
+| GC1 | career | Is your work or study direction settled, simple (just needs doing), or worth exploring? | C | career-depth | Fl | new |
 | GC2 | career | List the paths you are considering, one per line. Mark each: active, interested, untried or ruled out. | T | career-paths | Fl | new |
-| GC3 | career | For one untested path, what is the cheapest test you could run in the next six months? | T | career-paths | Fl | new |
-| GC4 | career | How much time with family or close people does your current work ask you to give up? [PP2] | S | work-cost | Fl | adapted, Personal Projects Analysis |
+| GC3 | career | What is the honest reason your first choice is first? | T | career-paths | Fl | new |
+| GC4 | career | For one untested path, what is the cheapest test you could run in the next six months? | T | career-paths | Fl | new |
+| GC5 | career | How much time with the people close to you does your current work or study take away? [PP2] | S | work-cost | Fl | adapted, Personal Projects Analysis |
 | GH1 | home | Is where and with whom you live settled, simple, or worth exploring? | C | home-depth | Fl | new |
 | GH2 | home | If no one constrained you, where would you live? Would you try several places or pick one? | T | home | Fl | new |
 | GH3 | home | If this depends on someone else's decision, list the realistic scenarios and what triggers each. | T | home | Fl | new |
@@ -181,27 +181,97 @@ St/Fl = stable/flexible. `+c` = also ask confidence. Existing items keep their w
 | GM3 | more | Health: one thing you want to be true in five years. (shown if picked) | T | more | Fl | new |
 | GM4 | more | Something of your own: what would it be, and what would have to be true to start? (shown if picked) | T | more | Fl | new |
 
-Depth gates: `GC2`–`GC3` use `showIf(GC1 === 'explore')`; `GH2`–`GH3` use `showIf(GH1 === 'explore')`. `GC4` always shows.
-Dropped from v1: MP2, MP4, CA2, PP1, AS1, AS2, ML1–ML3, old W5 (overlap or licence risk).
+Depth gates: `GC2`–`GC4` use `showIf(GC1 === 'explore')`; `GH2`–`GH3` use `showIf(GH1 === 'explore')`. `GC5` always
+shows. A G5 answer is listed in the Revisit tab as a reminder to retake Goals.
 
-Each item needs `help` only where the wording is not self-evident, a one-line `why`, a `note()` generator that writes
-the answer as a first-person line, and its `fileIds`.
+**Identity & Self-concept (12)**
+
+| Id | Node | Item | Fmt | Tag | Type | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| I1 | identity | Describe yourself in three words. | T | self-image | St | new |
+| I2 | identity | Pick three strengths: curiosity, persistence, kindness, honesty, humour, leadership, creativity, calm under pressure, fairness, discipline, courage, good with people. | M (3) | strengths | St | new |
+| I3 | identity | Which roles matter most to who you are? Pick up to three: student, working professional, son or daughter, sibling, partner, parent, friend, builder or creator, member of a community or faith. | M (3) | roles | Fl | new |
+| I4 | identity | I have a clear sense of who I am. | L | clarity | St | informed, self-concept clarity |
+| IT1 | tendencies | I get energy from being around people. | L | tendency | St | informed, IPIP |
+| IT2 | tendencies | I like trying new and unfamiliar things. | L | tendency | St | informed, IPIP |
+| IT3 | tendencies | I plan ahead and finish what I start. | L | tendency | St | informed, IPIP |
+| IT4 | tendencies | I worry about things a lot. | L | tendency | St | informed, IPIP |
+| IT5 | tendencies | I would rather keep the peace than win an argument. | L | tendency | St | informed, IPIP |
+| IB1 | becoming | When do you feel most like yourself? | T | becoming | St | new |
+| IB2 | becoming | One thing about yourself you struggle with or want to get better at. | T | becoming | Fl | new |
+| IB3 | becoming | People close to me see me the way I see myself. | L | becoming | St | new |
+
+**Worldview & Beliefs (13)**
+
+| Id | Node | Item | Fmt | Tag | Type | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| W1 | worldview | My own choices matter more than luck or circumstances in shaping my life. [W1] | L | agency | St | adapted, locus of control |
+| W2 | worldview | Most people can be trusted. | L | trust | St | informed, generalised trust |
+| W3 | worldview | On the whole, the world is more good than dangerous. | L | world | St | informed, primal world beliefs |
+| W4 | worldview | Hard work usually pays off. | L | agency | St | new |
+| W5 | worldview | Name one belief you've changed in the last two years. [W4] | T | worldview | Fl | new |
+| WC1 | control | Which is closer to what you believe? (one forced-choice pair) [PA1] | C | agency-belief | St | adapted, Rotter |
+| WC2 | control | People can change who they are in important ways. | L | agency-belief | St | informed, mindset |
+| WC3 | control | Think of something that went well recently. How much was you, and how much was luck or help? [PA3] | S | agency-belief | Fl | new |
+| WS1 | society | People are mostly shaped by: their upbringing and surroundings / their own choices / what they are born with. | C | society | St | new |
+| WS2 | society | A lasting relationship is mostly: finding the right person / building it together. | C | society | St | new |
+| WS3 | society | Religion or spirituality in how I understand the world: central / some part / little or none. | C | society | St | new |
+| WS4 | society | When you need to decide what is true, what do you trust most? experts / my own experience / family or tradition / intuition / texts [W2] | C | society | St | new |
+| WS5 | society | Something I believe that my family or most people around me don't. | T | society | Fl | new |
+
+**Moral Principles (14)**
+
+| Id | Node | Item | Fmt | Tag | Type | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| M1 | moral | A close friend is doing something clearly wrong, such as cheating or lying to someone. You: stay out of it / talk to them / tell someone who can stop it. | C | loyalty | St | new |
+| M2 | moral | A friend shows you work they are proud of, and it isn't good. You: say so plainly / soften it / say it's good. | C | honesty | St | new |
+| M3 | moral | When you judge whether something was right, what counts most? what it led to / whether a rule or promise was kept / what the person meant / whether it was fair to everyone [E5] | C | judging | St | new |
+| M4 | moral | What is ethical depends on the situation and culture; no rule applies everywhere. [E2] | L | relativism | St | adapted, EPQ-5 |
+| M5 | moral | How much do you feel you owe your parents or elders in time, money or big decisions? [E4] | S +c | family-duty | Fl | new |
+| MR1 | rules | Doing the right thing sometimes means accepting that someone will be hurt. [MP2] | L | rules | St | adapted, EPQ-5 |
+| MR2 | rules | Would you break a promise to prevent a small harm to a stranger? yes / no / depends on the promise [E3] | C | rules | St | new |
+| MR3 | rules | Is there something you would never do, whatever the reason? | T | rules | St | new |
+| MF1 | fairness | A fair split is: equal for everyone / by effort / by need. | C | fairness | St | informed, moral foundations |
+| MF2 | fairness | I should stand by my family or group even when they are in the wrong. | L | fairness | St | informed, moral foundations |
+| MF3 | fairness | How much responsibility do you have toward people outside your family or community? [W3] | S | fairness | St | new |
+| MD1 | family | What I do for my parents comes mostly from: love / gratitude / duty / what others expect. | C | filial | St | informed, dual filial piety |
+| MD2 | family | Children should go along with their parents' wishes on major life decisions, even when they disagree. [FR2] | L | filial | St | informed, dual filial piety |
+| MD3 | family | Is there a limit to what you owe your family? Where would you draw it? [FR3] | T | filial-limits | Fl | new |
+
+**Monthly check-in (4)** — `log: true`, suggested again after 30 days, about one minute.
+
+| Id | Item | Fmt |
+| --- | --- | --- |
+| C1 | Which area got most of your time this month? (the six areas from P2) | C |
+| C2 | How well did your time match your priorities? | S |
+| C3 | How close do you feel to the person you want to be? | S |
+| C4 | Did anything change this month? Optional. | T |
+
+Dropped from v1: E1, MP1, MP3, MP4, FR1, CA2, G3 (importance sliders), G4 (text form), PP1, AS1, AS2, ML1–ML3,
+old W5, PA2. Reasons: no real disagreement, overlap, or licence risk.
+
+Each item needs a one-line `why`, `help` only where the wording is not self-evident, an example placeholder on text
+items, its `fileIds`, and a `note()` that writes a natural first-person sentence (rule 3 in 1.3).
 
 ### 2.5 Dependent data
 
 - **Tension rules** (`data/tensions.ts`), same two-sided shape:
-  1. `M5 ≥ 7` and `GC4 ≥ 6` — family duty and what work costs in family time.
-  2. `P3` ranks career first and `M5 ≥ 7`.
-  3. `MF4 ≥ 7` and `P2.community ≤ 3`.
-  4. `PC1 = take` and `P2.relationships ≥ 8`.
-  5. `P1 = relationships` and `PC2 = yes`.
-  6. `PC4 ≤ 4` and `P1` answered — time does not match the stated priority.
-  7. `W1 ≥ 4` (agree) and `WA4 ≤ 3` — choices matter, yet a recent success credited to luck.
-  8. `I2 ≥ 4` and `IB1 ≤ 4` — clear sense of self, far from the person I want to be.
-- **Retakes** (`logic/retakes.ts`): unchanged rules. In a retake, each question shows the previous answer with a
-  "Still true" button (keeps the value, refreshes `answeredAt`) next to the normal input.
+  1. `M5 ≥ 7` and `GC5 ≥ 6` — what I owe family, and what work costs in time with them.
+  2. `P2` ranks work or studies first and `M5 ≥ 7`.
+  3. `P2`'s first-ranked area differs from `C1` in the latest check-in — where I want my attention, and where the
+     time went.
+  4. `PC1 = take` and `P1` is family or close relationships.
+  5. `P1 = partner or close relationships` and `PT3 = where the best opportunities are`.
+  6. `P3` includes security and `PT2 = an open, changing life`.
+  7. `W1 ≥ 4` (agree) and `WC3 ≤ 3` — choices matter, yet a recent success credited to luck.
+  8. `I4 ≥ 4` and latest `C3 ≤ 4` — clear sense of self, far from the person I want to be.
+- **Retakes** (`logic/retakes.ts`): existing rules, plus the check-in after 30 days and any G5 event note. In a
+  retake, each question shows the previous answer with "Still true" (keeps the value, refreshes `answeredAt`).
+- **Then and now:** the Done screen counts unchanged answers and lists changed ones as old → new, from
+  `Response.history`.
 - **Sample profile** (`data/sampleProfile.ts`), **Ask specs** (`data/ask.ts`), **predefined summaries**
-  (`data/files.ts`): rewrite for Priya against the new ids and files. Keep them as the no-AI fallback.
+  (`data/files.ts`): rewrite for Priya against the new ids and files, including three past check-ins. Keep them as
+  the no-AI fallback.
 - `logic/ask.ts` `detectDimensions` and `DIM_LABEL`: five branches.
 - Update all unit tests and `scripts/e2e-journey.cjs`.
 
@@ -248,6 +318,7 @@ Rules:
 - Details tab on a note: provenance of the selected line and the questions that write here. Remove the duplicate
   Summarise; move Reset topic and Erase topic data into the note's "…" menu.
 - Tree: show titles ("Family duty"), not slugs; branch-coloured folder dot; empty files dimmed.
+- Revisit tab lists the monthly check-in when due, and any "upcoming event" note from G5.
 - Hide the tree and dock while a questionnaire is active (focus mode), with a visible "Exit" link.
 
 ### 4.3 Notes
@@ -262,6 +333,9 @@ Rules:
 - Keep the single centred card. Add: keys 1–5 for scales, Enter for next, auto-advance after a scale or pick-one
   answer, "2 of 5" text beside the step dots.
 - New inputs: `multi` chips with a max and "None of these". Retake mode shows "Last time: …  [Still true]".
+- Every question has a collapsed "Add a note" link for one line in the user's own words.
+- The Done screen shows "Same as last time: N" and each changed answer as old → new.
+- The map marks Personal Priorities "Start here" until it has an answer.
 - Depth-gate answers "settled" or "simple" end the node early with the Done screen.
 
 ### 4.5 Graph (`GraphView.tsx`)
@@ -372,7 +446,7 @@ Each task prompt carries one short worked example (input and output) built from 
 ## 6. Phase 5 — docs and wrap-up
 
 - Rewrite `README.md` (branches, item table, AI setup) and update `SPEC_REVIEW.md` (what Doc 1 gaps are now closed:
-  values, self-concept, a monthly time-vs-priority item; what remains: monthly check-in scheduling).
+  values, self-concept, the monthly check-in, what stayed the same across retakes; what remains: reminders outside the app).
 - Replace `PLAN.md` with a pointer to this file once all phases are done.
 - Final check: fresh journey and sample journey in the e2e script, with AI off and with the fake provider.
 
