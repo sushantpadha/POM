@@ -1,28 +1,98 @@
 # Personal Operating Model — web prototype
 
-A prototype for putting your **ethics**, **worldview / beliefs** and **long-term goals** into words you can read,
-edit and question. It follows the group's *Prototype and Flow Development* writeup (Doc 2). Where the prototype differs
-from that writeup, or from the original project idea (Doc 1), the difference is listed in
-[`SPEC_REVIEW.md`](SPEC_REVIEW.md).
+A place to put five things into words you can read, edit and come back to: what you believe, what you think is right,
+what matters most to you, who you are, and what you want. Short sets of questions open on a map; every answer becomes a
+plain sentence in your notes; a one-minute monthly check-in shows what changed and what stayed the same.
 
-The prototype has no backend, no accounts and **no AI service**:
-- Summaries and "Ask your model" answers are pre-written for the sample profile. For anything else they are made by simple rules.
-- Potential tensions and retake suggestions are fixed rules applied to your actual answers.
-- Everything is stored in the browser's `localStorage`.
+It is a prototype from the group's writeups. [`PLAN_V2.md`](PLAN_V2.md) is the plan this version follows;
+[`SPEC_REVIEW.md`](SPEC_REVIEW.md) lists how it differs from the original writeups and what is still open.
+
+- No backend, no accounts. Everything is stored in the browser's `localStorage`.
+- AI is **off** by default. When turned on, it only uses a model on your own computer through Ollama.
+- Nothing is scored. Items are our own wording; none is a validated instrument.
 
 ## Running it
 
 ```bash
 npm install
-npm run dev                    # http://localhost:5173
-npm test                       # unit tests: graph, notes/versions, tensions, export/import
-npm run build                  # type-check + production build into dist/
-node scripts/e2e-journey.cjs   # with the dev server running; needs Playwright
+npm run dev                          # http://localhost:5173
+npm test                             # unit tests
+npm run typecheck
+npm run contrast                     # colour contrast check of the palette
+node scripts/e2e-journey.cjs         # with the dev server running; needs Playwright
+node scripts/ai-eval.mjs phi4-mini   # with Ollama running: AI eval, see below
+node scripts/experiment-summary.mjs <logs…>   # summary of exported experiment logs
+npm run build                        # type-check + production build into dist/
 ```
 
-On first load, choose **Start fresh** (consent, then your own answers) or **Look at a sample**. The sample is
-Priya, a fictional MSc student weighing a PhD offer abroad against family commitments. You can switch later from the
-menu at the top right.
+On first load, choose **Start fresh** (consent, then your own answers) or **Look at a sample**. The sample is Priya, a
+fictional MSc student in Pune weighing a PhD offer in Zurich against family commitments, eight months in, with three
+monthly check-ins. You can switch from the menu at the top right.
+
+The layout is for desktop and needs a width of 1100 px or more.
+
+## Deploying to GitHub Pages
+
+1. In the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions** (one time).
+2. Run **Actions → Deploy to GitHub Pages → Run workflow**. It only runs when started by hand. It tests, builds and
+   publishes `dist/`.
+
+Each visitor's data stays in their own browser. Data saved by an earlier build is discarded on first load (storage
+version 5), because the old question ids do not map onto the new items.
+
+## The five branches
+
+A first visit shows only the five entry areas (25 items, about two minutes each). The rest opens from answers: an area
+opens when **any** of its parent tags is active.
+
+| Branch | Area | Items | Opened by | Notes file |
+| --- | --- | --- | --- | --- |
+| Personal Priorities (start here) | Personal Priorities | P1–P5 | consent | `priorities/main` |
+| | What I'd Trade | PT1–PT3 | P3 or P4 | `priorities/trade-offs` |
+| | When Priorities Clash | PC1–PC2 | P1, MD3 or GC5 | `priorities/trade-offs` |
+| Goals & Aspirations | Goals & Aspirations | G1–G6 | consent | `goals/main` |
+| | Work & Study Path | GC1–GC5 (GC2–GC4 only if “worth exploring”) | G1 or G3 | `goals/work-and-study` |
+| | Relationships & Home | GH1–GH3 (GH2–GH3 only if “worth exploring”) | G2 or G4 | `goals/relationships-and-home` |
+| | Other Areas | GM1–GM4, one per area picked in G6 | G6 (any pick) | `goals/main` |
+| Identity & Self-concept | Identity & Self-concept | I1–I4 | consent | `identity/main` |
+| | How I Tend to Be | IT1–IT5 | I1 or I4 | `identity/tendencies` |
+| | Who I Want to Be | IB1–IB3 | I2 or I3 | `identity/becoming` |
+| Worldview & Beliefs | Worldview & Beliefs | W1–W5 | consent | `worldview/main` |
+| | Control & Change | WC1–WC3 | W1 or W4 | `worldview/control-and-change` |
+| | People & Belief | WS1–WS5 | W2 or W3 | `worldview/people-and-belief` |
+| Moral Principles | Moral Principles | M1–M5 | consent | `moral/main` |
+| | Rules & Exceptions | MR1–MR3 | M2, M3 or M4 | `moral/rules-and-exceptions` |
+| | Fairness & Loyalty | MF1–MF3 | M1 | `moral/fairness-and-loyalty` |
+| | Family Duty | MD1–MD3 | M5 or G4 | `moral/family-duty` |
+| (none) | Monthly Check-in | C1–C4, logged with the date | P2 | `check-ins/log` |
+
+63 branch items, 4 opt-in one-liners (GM1–GM4) and the 4-item check-in. Items marked *Adapted* paraphrase a published
+item; *Informed* items are our wording on a published construct (Schwartz values, self-concept clarity, IPIP, generalised
+trust, primal world beliefs, implicit theories, locus of control, EPQ-5, moral foundations, dual filial piety, Personal
+Projects Analysis, Best Possible Self). No instrument is given in full.
+
+Formats: agree/disagree, pick one, pick several (with a maximum or “None of these”), rank, 0–10 slider, one line of text.
+Every question can be skipped, and every question has an optional **Add a note** for one line in your own words.
+
+## How it works
+
+- **Answers go straight into the notes.** Taps apply at once, sliders on release, text on Enter or when you leave the
+  box. Each answer writes one sentence you could have written (“When two things I want clash, family usually wins.”).
+  A locked line is never changed: the new answer goes on the line after it.
+- **Notes.** Each line records who made it (you, an answer, or a summary), with an id, timestamps, the question it came
+  from and a lock. Answers and edits in one browser session make one new version per file; the current version and the
+  five before it are kept, with a History view to compare and restore.
+- **Then and now.** A retake shows “Last time: … [Still true]”. The Done screen lists “Same as last time: N” and each
+  change as old → new.
+- **Monthly check-in.** Four quick items, each logged with the date, suggested again 30 days after the last one.
+- **Potential tensions.** Eight fixed rules (`src/data/tensions.ts`), shown only when both sides are backed by current
+  notes in two different files. The check-in rules use the latest check-in.
+- **Revisit.** The check-in when due, an upcoming event you named (G5), flexible answers older than 120 days, answers
+  marked unsure, and notes of your own that say something changed.
+- **Ask.** Quotes your notes with citations, kept separate from any reading. A reading disappears if a note it cites is
+  deleted.
+- **Summarise** shortens generated lines; your own and locked lines stay word for word. It is always a draft to accept
+  or cancel.
 
 ## Local AI (optional)
 
@@ -34,90 +104,50 @@ ollama pull phi4-mini         # default (best in our eval, see AI_EVAL.md); qwen
 ```
 
 Then open **Your data** (the ⓘ button) → **AI** → **Ollama**, agree to the second consent, and use **Test connection**.
-The address defaults to `http://localhost:11434` and the model name is a setting.
+The address defaults to `http://localhost:11434`, and the model name is a setting.
 
 - From `npm run dev` on `localhost`, no Ollama setting is needed.
 - For the hosted GitHub Pages build, start Ollama with your page's origin allowed, e.g.
   `OLLAMA_ORIGINS=https://<user>.github.io ollama serve`.
 
-With AI on, the model shortens notes (a draft you accept or cancel), words potential tensions, and gives a reading in Ask
-only when you click **Show a reading**. Code picks what goes in and checks what comes out (valid JSON, citations,
-length, no advice or diagnosis phrases, no invented numbers or dates); anything that fails falls back to the
-rule-based output.
+| Job | With AI on | With AI off, or if the output fails a check |
+| --- | --- | --- |
+| Summarise a note | Code picks the unlocked generated lines; the model shortens them (a draft) | Pre-written (sample) or rule-based summary |
+| Tensions | Rules pick the pairs; the model words one “You said …” sentence | The rule's own sentence |
+| Ask | Code retrieves and quotes the notes; the model writes a reading only on **Show a reading** | Pre-written readings (sample) or quotes only |
+| Retakes | Rules only | Rules only |
+
+Every model output is checked: valid JSON, citations that point at lines that were sent, length caps, no advice or
+diagnosis phrases (“you should”, “deep down” …), and no number or date that is not in the notes. A line that fails is
+dropped; if nothing survives, the rule-based output is used and the app says “No AI reading for this one”.
 
 `node scripts/ai-eval.mjs phi4-mini qwen3:4b …` runs 15 fixtures from the sample profile against a running Ollama and
-prints pass rates per model.
+prints the pass rate per model. The target is 90% of fixtures passing every check on the default model; the results
+are in [`AI_EVAL.md`](AI_EVAL.md).
 
-## Deploying to GitHub Pages
+## Experiment mode
 
-1. In the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions** (one time).
-2. Run **Actions → Deploy to GitHub Pages → Run workflow**. It only runs when started by hand. It tests, builds and
-   publishes `dist/`.
+For testing the questions with real people (PLAN_V2 1.4). Off by default: **Your data → Advanced options → Experiment
+mode**. It records every answer, note and click with timestamps in this browser under its own key, with a random
+participant id (never the display name, and never for the sample profile), capped at 5,000 events. **Export experiment
+log** downloads it as one JSON file; the normal data export is unchanged. Turning the mode off stops logging at once and
+offers to delete or keep the log.
 
-Each visitor's data stays in their own browser. Data saved by an earlier build with the old question set is discarded
-on first load, because the old question IDs don't map onto the new items.
+`node scripts/experiment-summary.mjs logs/*.json` prints, per item: times shown, answered and skipped, median seconds to
+answer, the share that used “Add a note”, and the share changed on a retake.
 
 ## Your data
 
 - Onboarding asks what to call you. This is a display name only; there is no account and no password.
-- **Export** downloads one unencrypted JSON file with your name, answers, notes and file versions. **Import** checks
-  the file and asks before replacing what is in the browser.
-- Each topic file has **Reset topic**, which clears generated lines and keeps your own and locked lines. You can choose
-  whether to keep the answers. It also has **Erase topic data**, which removes the notes, their history and the linked
-  answers after you type the file name to confirm.
-
-## Questions
-
-The 15 branch items are Doc 2's E1–E5, W1–W5 and G1–G5, with the wording, format, tag, Stable/Flexible type and source
-unchanged. E1, E5 and W2 use the wording from the *POM UI: Executive Summary* (E1 is the EPQ idealism item; E5 and W2
-list their options in the prompt). W5 keeps Doc 2's `#epistemic` tag (see `SPEC_REVIEW.md`). Each question lists the notes file(s) it writes to,
-as in Doc 2:
-
-| Answers | Write to |
-| --- | --- |
-| E1, E2, E3, E5 | `ethics/moral-principles` |
-| E4 | `ethics/family-obligations` |
-| W1 / W2 / W3 | `worldview/personal-agency` / `sources-of-knowledge` / `obligations-to-others` |
-| W4, W5 | `worldview/main` |
-| G1, G2 | `long-term-goals/career` (G2 also writes to `relationships`) |
-| G4 | `long-term-goals/relationships` |
-| G3, G5 | `long-term-goals/main` |
-
-Deeper nodes open from these answers. Items marked *Adapted* are our paraphrases; no instrument is given in full and
-nothing is scored.
-
-| Node | Opened by | Items |
-| --- | --- | --- |
-| Moral Principles | `#idealism`, `#relativism`, `#moral-principles` | EPQ-5 idealism and relativism, paraphrased |
-| Family Relationships | `#family-duty` (E4) **or** `#relationships` (G4…) | informed by the dual filial piety model, plus a limits question |
-| Care vs Ambition | Family Relationships **or** Personal Projects | our own trade-off questions |
-| Personal Agency | `#personal-agency` (W1) | Rotter-style forced-choice pairs |
-| Meaning in Life | `#epistemic` (W5) **or** Aspirations | MLQ presence and search, paraphrased |
-| Personal Projects | `#career` | Personal Projects Analysis rating dimensions |
-| Aspirations | `#aspirations` (G3) | Aspiration Index likelihood ratings |
-
-## How it works
-
-- **Graph:** a node opens when **any** of its parent-tags is active, and answering a question activates its tags.
-  Edges are derived from tags, and the graph is checked for cycles at startup. A node with several parents still
-  appears once. Unlock state is recalculated from your answers, never stored separately.
-- **Notes:** every line records who made it: you (hand icon), generated from an answer (pencil) or a summary (robot). It
-  also has a unique ID, timestamps, the question it came from and a lock. Saving answers produces a **draft** for each
-  file they write to. Nothing changes until you commit it.
-- **Versions:** each file keeps its current version and the five before it, with a compare view and a restore option.
-- **Summarise:** a draft that shortens the generated lines and keeps your own and locked lines word for word. On a
-  `main` file, it summarises that folder's topic files.
-- **Potential tensions:** four fixed rules (in `src/data/tensions.ts`). A rule only shows when both sides are backed
-  by current notes in two different files. Each tension links to the questionnaires behind it.
-- **Changes over time:** compares an earlier version of a single file with its current version.
-- **Suggested retakes:** flexible answers older than 120 days, answers marked unsure, and your own notes that say
-  something changed.
-- **Ask your model:** quotes your notes with citations, kept separate from any interpretation. Interpretations exist
-  only for the sample profile's example questions, and one is dropped if any note it cites is gone.
+- **Export** downloads one unencrypted JSON file with your name, answers, notes and file versions. **Import** checks the
+  file and asks before replacing what is in the browser.
+- Each note's **…** menu has **Reset topic** (a preview that clears generated lines and keeps your own and locked lines,
+  with or without your answers) and **Erase topic data** (removes the notes, their history and the linked answers after
+  you type the file name).
 
 ## Simplifications
 
-- Manual edits made in one browser session are grouped into a single new file version. Locking a line does not
-  create a version.
-- The question sets are short demonstration sets, not validated instruments.
-- The layout is desktop-first and needs a width of 1100 px or more.
+- The item set comes from simulated walk-throughs, not user tests. Have three to five real people do the full set while
+  thinking aloud, and have a psychologist review the items, before relying on it.
+- Reminders happen only inside the app; there are no notifications.
+- Desktop only.

@@ -1,52 +1,7 @@
-# Personal Operating Model — build plan
+# Personal Operating Model — plan
 
-Frontend-only prototype (Vite + React + TypeScript, Zustand store persisted to
-`localStorage`). No backend, no auth, no real AI: every "AI" output is
-predefined or rule-based and labelled as simulated.
+The current plan is [`PLAN_V2.md`](PLAN_V2.md): the five-branch question set, auto-applied answers, the calmer UI,
+local AI through Ollama and experiment mode. All of its phases are implemented; see [`README.md`](README.md) for how the
+app works, [`SPEC_REVIEW.md`](SPEC_REVIEW.md) for what is still open, and [`AI_EVAL.md`](AI_EVAL.md) for the AI eval.
 
-## Foundational data model (built first)
-
-| Concept | Shape | Notes |
-| --- | --- | --- |
-| Question | `id`, `nodeId`, `selfTags[]`, `stability` (stable/flexible), `source` (research-informed / adapted / exploratory), `type`, optional confidence, note template | Answering a question activates its `selfTags`. |
-| Node | `id`, `name`, `tag`, `parentTags[]`, `fileId`, `branch` | Node is **available** iff any `parentTag` is active (OR semantics). Root is always available. |
-| Edge | derived: `P → C` iff some question in `P` emits a tag in `C.parentTags` | Graph validated as a DAG at startup (Kahn's algorithm); nodes are keyed by id so multiple parents instantiate a node once. |
-| Response | `value`, `confidence?`, `answeredAt`, history of prior values | Unlock state is *derived* from responses — never stored separately. |
-| File | `current` version + `history` (max 5) + optional `proposal` | Versioning is per file. |
-| Entry | `id`, `createdAt`, `updatedAt`, `provenance` (human/auto/ai), `sourceItemId?`, `locked` | Locked entries are preserved by every automatic update and summary. |
-
-## Task list
-
-### Pass 0 — plan
-- [x] Data model + task list (this file)
-
-### Pass 1 — foundation
-- [x] Project scaffold, dark design tokens, app shell (top bar, explorer, workspace tabs, context panel)
-- [x] Question bank for Ethics / Worldview / Long-term goals + deeper nodes, with tags, stability, source labels
-- [x] Graph logic: derived edges, DAG validation, OR-tag unlocking, depth, descendants, progress + exploration metrics
-- [x] Unit tests for graph logic
-- [x] Interactive SVG graph (d3-force layout): pan, zoom, drag, select, hover-highlight, reset view, node states, legend
-- [x] Node context panel (description, dates, progress, notes link, take/retake, changes, tensions)
-- [x] Onboarding + preliminary consent on the root node → reveals three branches
-- [x] Questionnaire runner: agreement scales, choice, ranking, text, goal entry; confidence; skip; live unlock feedback; submit summary
-- [x] File explorer + note editor (rich-text-like lines, add/edit human notes, wikilinks)
-- [x] Demo chooser: fresh start vs. sample profile ("Priya", ~7 months of use)
-
-### Pass 2 — maintenance layer
-- [x] Provenance icons (hand / pencil / robot), per-line lock, entry metadata
-- [x] File versioning (current + 5), history viewer, compare with current
-- [x] Generated-update proposals after a questionnaire (preview → Commit / Cancel), locked lines protected
-- [x] Simulated summarisation proposal (locked lines kept verbatim)
-- [x] Changes over time (single file, vs. current)
-- [x] Potential tensions (across files): inspect, add context, dismiss, linked retakes by tag
-- [x] Suggested retakes (★): open / retake / defer
-- [x] Ask the model (?): staged retrieval simulation, citations to files/entries/assessment items, disclaimer
-- [x] Reset topic vs. Erase topic data dialogs
-- [x] Unit tests for notes logic; end-to-end journey check in a headless browser
-
-### Pass 3 — align with the writeups, polish
-- [x] Replace the question bank with Doc 2's items (E1–E5, W1–W5, G1–G5) and the file each one updates
-- [x] Deeper items paraphrased from the cited instruments (EPQ-5, Rotter, MLQ, PPA, Aspiration Index)
-- [x] Family Relationships node with two parents, as in Doc 2
-- [x] Quieter, muted theme; less on screen; plainer, more honest wording
-- [x] Spec review with flagged issues (`SPEC_REVIEW.md`)
+The v1 build plan this file used to hold is in the git history.

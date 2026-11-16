@@ -2,88 +2,77 @@
 
 Sources:
 - **Doc 1:** *HS459 Project Idea, Group 5*, the original concept.
-- **Doc 2:** *Prototype and Flow Development, Group 5*, the flow and item tables the prototype should match.
+- **Doc 2:** *Prototype and Flow Development, Group 5*, the flow and item tables of the first prototype.
+- **PLAN_V2.md:** the owner's plan for v2, which this build follows.
 
-The prototype now follows **Doc 2**. Where Doc 2 is unclear or contradicts itself, the build makes the smallest reasonable choice and the choice is listed here. Gaps against Doc 1 are listed, not built.
+v1 followed Doc 2 item by item. v2 replaces Doc 2's three branches and 15 items with five branches and a new item set
+(PLAN_V2.md section 2), after three simulated user walk-throughs found items nobody disagrees with, abstract wording and
+the same question asked three ways. Where v2 departs from Doc 2, the reason is in PLAN_V2.md section 1.
 
-## 1. What now matches Doc 2
+## 1. What v2 changes against Doc 2
 
-| Doc 2 says | Prototype |
+| Doc 2 | v2 |
 | --- | --- |
-| Root "Who am I?" covers consent; nothing opens until it passes | Yes. The four steps are About, Your data, Question types and Consent. |
-| Completing the root opens Ethics, Worldview / Beliefs and Long-term Goals | Yes |
-| Items E1–E5, W1–W5 and G1–G5, with the stated format, self-tag, Stable/Flexible type and Adapted/New source | Yes. The wording is verbatim. The formats are 5-point agreement, 0–10 slider (with a confidence rating on E4), ranking, short text, text + 2 sliders (G1) and 5 sliders (G3). |
-| E1, E2, E3 and E5 update `ethics/moral-principles`; E4 updates `ethics/family-obligations` | Yes. Each question now names the file(s) it writes to. |
-| W1, W2 and W3 update `personal-agency`, `sources-of-knowledge` and `obligations-to-others` | Yes |
-| G1 and G2 update `career`; G2 and G4 update `relationships`; G3 updates `long-term-goals/main` | Yes. G2 writes the same line to both files. |
-| Family Relationships is opened by both E4 and G4, so one node has two parents | Yes. The node is named **Family Relationships**, as in Doc 2; the old build called it "Obligations to Elders & Family". |
-| Each line records provenance, source question ID, a unique ID, timestamps and a lock | Yes |
-| Locked lines are never changed automatically, including by summaries | Yes. Summaries now also leave the user's own lines untouched (see 3.4). |
-| Each file keeps the current version plus 5 prior; nothing changes until you commit | Yes |
-| Potential tensions, Changes over time, Retake panel and Ask your model | Yes. The retake panel and Ask were simplified to match Doc 2's description. |
-| An AI statement disappears if the note it cites is deleted | **Now strict.** Before, a statement was kept while at least half of its sources remained. |
-| "Questions marked Adapted are paraphrased, not administered in full" | Yes. Each question shows its source, and nothing is scored. |
-| Main file = summary of the branch | Yes. *Summarise* on a `main` file builds a summary from the topic files in that folder. |
+| Three branches: Ethics, Worldview / Beliefs, Long-term Goals | Five: Worldview & Beliefs, Moral Principles, Personal Priorities, Identity & Self-concept, Goals & Aspirations |
+| Items E1–E5, W1–W5, G1–G5 | 63 branch items, 4 opt-in one-liners and a 4-item monthly check-in. Carried over in new wording: W1, W4 (as W5), G1, G2, E2 (as M4), E3 (as MR2), E4 (as M5), E5 (as M3), W2 (as WS4), W3 (as MF3), G5 (as P2). Dropped: E1, the old W5, and G3 and G4 in their v1 forms (importance sliders, text). |
+| Answers become a draft; nothing changes until you commit | Every answer is written to the notes at once (owner decision). Locked lines are never changed; the new answer goes on the line after them. Summaries and Reset topic are still previews. |
+| Answer once | A one-minute monthly check-in, "Last time: … [Still true]" on every retake, and a Done screen that counts what stayed the same and lists what changed. |
+| No AI in the prototype | Optional AI through the user's own Ollama, off by default, behind a second consent. Code chooses what goes in and checks what comes out; rules are the fallback. |
 
-Deeper nodes below the 15 Doc 2 items use paraphrased items from instruments the writeups cite:
-- **Moral Principles:** EPQ-5 idealism and relativism.
-- **Personal Agency:** Rotter's forced-choice format.
-- **Personal Projects:** Personal Projects Analysis rating dimensions.
-- **Aspirations:** Aspiration Index likelihood ratings.
+Still as in Doc 2: the root "Who am I?" covers consent; nodes open with OR on parent tags; one node with two parents
+(now Family Duty, from Moral Principles and Goals); provenance, unique ids, timestamps and locks on every line; the
+current version plus five prior per file; potential tensions, retakes and Ask with citations; a reading disappears when a
+note it cites is gone.
 
-Two more deeper nodes cover Doc 1 topics:
-- **Meaning in Life:** MLQ presence and search items, for Doc 1's "Meaning and purpose".
-- **Family Relationships:** filial-obligation items informed by the dual filial piety model, a construct the writeups don't cite.
+## 2. Gaps against Doc 1
 
-**Care vs Ambition** is our own node. It is reached from Family Relationships and from Personal Projects.
+Closed in v2:
 
-## 2. Issues in Doc 2 to fix in the writeup
+1. **Values.** Personal Priorities asks what wins when wants clash (P1), a short values pick informed by Schwartz (P3),
+   and three plain trade-offs.
+2. **Self-concept.** Identity & Self-concept: three words, strengths, roles, self-concept clarity (I4), five one-item
+   tendencies informed by IPIP, and who you want to be.
+3. **Monthly check-ins.** Four items (where the time went, how well it matched priorities, how close you feel to the
+   person you want to be, what changed), logged with the date and suggested again after 30 days. Doc 1's example tension
+   ("relationships matter, but time with them has decreased") now has data: tension 3 compares P2's first area with the
+   latest check-in.
+4. **What stayed the same.** "Still true" on retakes, "Same as last time: N" on the Done screen, and Ask can read the
+   check-in log ("in all three check-ins most of your time went to work or studies").
+5. **Decision support,** partly: the depth gates (settled / simple / worth exploring), the paths list and cheapest test
+   (GC2–GC4), scenarios when someone else decides (GH3), conditions under which a lower priority wins (PC2), and an
+   upcoming event (G5) that is listed under Revisit.
+6. **Separate control over sharing with AI.** AI is off by default, runs only on the user's own computer, and turning it
+   on asks a second consent.
 
-Items marked **(changed in build)** were changed in the prototype. All others are left exactly as Doc 2 has them.
+Still open:
 
-1. **W5 tag.** W5 asks "what would make your life feel well used?", which is about purpose, but Doc 2 tags it `#epistemic`. The UI summary also says this tag should change. The build keeps Doc 2's `#epistemic`, so that the tags match the writeup exactly, and Meaning in Life opens from it. Doc 2 also doesn't say which file W5 updates; the build uses `worldview/main`.
-2. **E1 may not measure idealism (fixed by the UI summary).** The build now uses the summary's wording, "If an action could harm an innocent other, then it should not be done." Doc 2's original wording: "A moral action is one that produces the least harm for everyone involved" reads as a minimise-total-harm (consequentialist) statement. EPQ idealism items are about not harming anyone, whatever the benefit. Suggest rewording E1 as an idealism item (e.g. "It is never right to harm another person, even for a good result"), or changing its tag.
-3. **E5 is tagged `#idealism`, but it measures consequences vs. rules vs. intentions.** That is a preference between ethical theories, not EPQ idealism. Give it its own tag (e.g. `#moral-reasoning`).
-4. **Double- and triple-barrelled items.** E2 asks about situation *and* culture *and* "no rule applies everywhere". E4 covers time *and* money *and* career decisions. G1 asks three questions in one. They work as reflective prompts, but a single answer can't be read cleanly. Split them if the answers are ever compared.
-5. **With OR unlocking, Family Relationships is not opened only by E4 and G4.** G2 and G5 also carry `#relationships`, so they open it too. If Doc 2 means "only G4", give G4 a distinct tag (e.g. `#family-life`).
-6. **G5 target file not stated.** The build uses `long-term-goals/main`.
-7. **No question writes to `ethics/main`.** Doc 2 treats `main` as "a summary", which is how the build now works: it is filled by *Summarise* or by hand. Say so explicitly in Doc 2.
-8. **"Worldview Analysis Scale" is listed as a source, but no item is adapted from it.** W1 is adapted from locus of control only. Either adapt an item from it or remove it from the source table.
-9. **Add full references** for EPQ-5 (Forsyth), Personal Projects Analysis (Little), Aspiration Index (Kasser & Ryan), Best Possible Self (King, 2001), locus of control (Rotter, 1966) and, if kept, MLQ (Steger et al., 2006). Check each instrument's terms of use before using wording closer to the original items.
-10. **Figures are from the previous build.**
-    - Fig. 1 shows old node names ("Obligations to Elders & Family", "Harm & Consequences").
-    - Fig. 3 shows "0 / 6 answered" for Ethics, but Doc 2 lists five items.
-    - Fig. 4 quotes old items.
-    Re-take the screenshots.
-11. **Gendered wording.** "...describe his inner feelings ... asking him" in the W5 notes. Use "their" / "them".
-12. **"What is real and what is simulated" understates what runs.**
-    - Tension detection and retake suggestions are fixed rules that run on the user's real answers. They are not sample data.
-    - Summarisation is pre-written for the sample profile and rule-based otherwise.
-    - Ask is pre-written for the sample profile and otherwise quotes the user's notes.
-    Suggested statuses: *Working (rule-based)* for tensions and retakes, and *Simulated (pre-written for the sample; rule-based otherwise)* for summaries and Ask.
-13. **The AI table conflates two things.** Doc 2's "Summarise: after a set of questions, a short draft note is shown as a proposal" describes the note drafted from answers. In the prototype that draft comes from fixed templates (pencil icon, no AI). The AI-style summary is a separate *Summarise* action (robot icon). The writeup should keep these apart, as Doc 1's "AI transparency" point requires.
-14. **Privacy claim is too strong.** "Though the AI model runs on public APIs, they can be secured and privacy-protected ... (anonymization etc.)" promises more than can be delivered. Free-text personal notes are hard to anonymise. Suggest: "A full version would send notes to an AI service only after separate opt-in consent, and would minimise what is sent. Free text cannot be fully anonymised." The prototype's onboarding now says this.
+1. **Reminders outside the app.** The check-in is suggested inside the app only; there are no notifications or emails,
+   because there is no server.
+2. **"Change the importance of an aspect"** directly on a note. Users edit, delete, lock or retake.
+3. **Purpose / meaning** is no longer its own node (Doc 1's "Meaning and purpose"); it is touched by G2, IB1 and C3.
+4. **Validation.** Items are our own wording; nothing is scored. Real-user think-aloud tests (PLAN_V2 1.4) and a
+   psychologist's review are still needed. Experiment mode records what testers do so weak items can be cut.
+5. **AI quality.** On the eval, phi4-mini (the default) passed 14 of 15 fixtures and the other models 11–12; every model
+   mishandled a question the notes cannot answer. The guards catch these, but readings should be checked with testers
+   too. See [`AI_EVAL.md`](AI_EVAL.md).
 
-## 3. Behaviour changes made to match the writeups or to be more honest
+## 3. Items flagged while building v2
 
-1. **The question bank was replaced** with Doc 2's items plus the deeper items described above. The old items (ETH-01…, HRM-…, CAR-…) are gone.
-2. **Saved browser data from the earlier build is discarded** on first load (storage version 2). The old question IDs can't be mapped onto the new items. Old export files are rejected with an explanation.
-3. **Submitting a questionnaire can draft changes to several files at once**, because each question names its own file.
-4. **Summaries only shorten generated lines.** Lines the user wrote, and locked lines, stay word for word.
-5. **Wording:** "Ask the model" became "Ask your model", as in Doc 2. All AI-labelled features say plainly that no AI is used in this prototype. Status labels changed from "Locked / Undiscovered / Available" to "Not opened yet / Open".
-6. **Retake suggestions** now use three reasons: flexible answers older than 120 days, answers marked unsure, and the user's own note saying something changed. The reason "feeds a potential tension" was dropped as clutter.
-7. **Topic files appear in the explorer only once their questions are open**, matching Doc 2's "topic files created as the user goes deeper".
+Used as written in PLAN_V2 2.4; flagged against its rules in 1.3, not rewritten:
 
-## 4. Gaps against Doc 1 (not built; decide whether Doc 2 should mention them)
+1. **Rule 6:** the Goals entry node has three text items outside a gate (G1, G2, G5).
+2. **Rule 1:** GC2 and GH3 ask for lists (several lines), not one line. Both are behind a gate.
+3. **"No why about motives":** GC3 ("What is the honest reason your first choice is first?") is a why-probe; MD1 asks
+   where duty comes from, as a pick-one.
+4. **Overlap (finding 4 in 1.2):** W1, W4, WC1 and WC3 all ask about choices or effort versus luck; W4 and WC1 are close.
 
-1. **Branches changed.** Doc 1 has Values, Ethics, Purpose and Worldview. Doc 2 has Ethics, Worldview and Long-term Goals.
-    - Values (Schwartz PVQ), VIA, the Moral Foundations Questionnaire, IPIP and Self-Concept Clarity are not used.
-    - Purpose is only partly covered, by W5 and the added Meaning in Life node.
-    - Doc 2 should say the scope was narrowed and why.
-2. **No monthly check-ins.** Doc 1's core loop has short monthly check-ins on time use, behaviour, concerns and whether actions match priorities. The prototype has retakes instead.
-    - Doc 1's example tension ("relationships are important but time spent with them has decreased") needs time-use data that nothing collects.
-    - PP2 (family time the project costs) is the nearest item.
-3. **No "stable" observations.** Doc 1 shows "STABLE: Autonomy has remained highly important across the last five assessments". Changes over time shows differences between versions of a file, but nothing reports what has *stayed* the same across assessments.
-4. **No direct "change the importance of an aspect".** Users can edit, delete or lock lines, cancel drafts, or retake a question, but there is no importance control on a note.
-5. **Decision support is only an example question** ("…before deciding on the Zurich offer?"). There is no structured way to bring in a decision and compare options against the model.
-6. **No separate control over sharing with an external AI.** None is needed while no AI is used. The consent step says the user would be asked again before any data is sent to one.
+## 4. Still worth fixing in the writeups
+
+1. **References** for every construct cited: Schwartz values, self-concept clarity (Campbell et al., 1996), IPIP
+   (Goldberg et al., 2006), generalised trust, primal world beliefs (Clifton et al., 2019), implicit theories (Dweck),
+   locus of control (Rotter, 1966), EPQ-5 (Forsyth), moral foundations (Haidt & Graham), dual filial piety (Yeh &
+   Bedford, 2003), Personal Projects Analysis (Little, 1983), Best Possible Self (King, 2001). Check each one's terms
+   of use before wording closer to the original items.
+2. **Privacy wording.** "Public APIs can be secured and anonymised" promises too much. v2's stance: nothing leaves the
+   computer; free text cannot be fully anonymised.
+3. **Figures** show the v1 map and items. Re-take the screenshots.
