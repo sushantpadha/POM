@@ -24,6 +24,7 @@ import { activeTags, availableIds } from '../logic/graph';
 import { applyAnswer, commitVersion, nowIso, regenerate, summarize, summarizeBranch, uid } from '../logic/notes';
 import { MODEL, nodesForFile, questionsForFile } from './model';
 import { buildExport, type ExportFile, type PortableData } from '../logic/transfer';
+import { DEFAULT_AI, type AiSettings } from '../ai/provider';
 
 /** Tabs of the right-hand dock. */
 export type DockTab = 'details' | 'ask' | 'tensions' | 'revisit';
@@ -56,6 +57,10 @@ interface Ui {
   graphResetCounter: number;
   /** Manual-edit versions created during this browser session, so edits coalesce into one version. */
   manualVersions: Record<string, string>;
+  /** AI settings. Off by default; a device setting, so not part of the data export. */
+  ai: AiSettings;
+  /** A model call in progress, shown in the top bar. */
+  busy: string | null;
 }
 
 interface Actions {
@@ -80,7 +85,10 @@ interface Actions {
   toggleLock: (fileId: string, entryId: string) => void;
   commitProposal: (fileId: string) => void;
   cancelProposal: (fileId: string) => void;
-  proposeSummary: (fileId: string) => boolean;
+  /** Drafts a summary. `aiLines`, when given, replace the rule-based lines for the file's own answers. */
+  proposeSummary: (fileId: string, aiLines?: string[]) => boolean;
+  setAi: (patch: Partial<AiSettings>) => void;
+  setBusy: (text: string | null) => void;
   restoreVersion: (fileId: string, versionId: string) => void;
   resetTopic: (fileId: string, retainResponses: boolean) => void;
   eraseTopic: (fileId: string) => void;
@@ -139,7 +147,7 @@ function sampleData(): Data {
   };
 }
 
-const initialUi = (): Omit<Ui, 'toasts' | 'manualVersions'> => ({
+const initialUi = (): Omit<Ui, 'toasts' | 'manualVersions' | 'ai' | 'busy'> => ({
   tabs: [{ kind: 'graph' }],
   activeTab: 0,
   selectedNodeId: null,
@@ -252,6 +260,14 @@ export const useStore = create<Store>()(
         ...initialUi(),
         toasts: [],
         manualVersions: {},
+        ai: { ...DEFAULT_AI },
+        busy: null,
+        setBusy: (text) => set((s) => void (s.busy = text)),
+
+        setAi: (patch) =>
+          set((s) => {
+            Object.assign(s.ai, patch);
+          }),
 
         chooseProfile: (p) =>
           set((s) => {
@@ -438,16 +454,16 @@ export const useStore = create<Store>()(
             s.files[fileId].proposal = undefined;
           }),
 
-        proposeSummary: (fileId) => {
+        proposeSummary: (fileId, aiLines) => {
           const files = get().files;
           const file = files[fileId];
           let proposal;
           if (file.name === 'main') {
             const topics = Object.values(files).filter((f) => f.dir === file.dir && f.name !== 'main');
-            proposal = summarizeBranch(file, topics);
+            proposal = summarizeBranch(file, topics, undefined, aiLines);
           } else {
             const predefined = PREDEFINED_SUMMARIES[fileId];
-            proposal = summarize(file, predefined?.forVersion === file.current.versionId ? predefined.lines : undefined);
+            proposal = summarize(file, aiLines ?? (predefined?.forVersion === file.current.versionId ? predefined.lines : undefined));
           }
           if (!proposal) return false;
           set((s) => {
@@ -646,6 +662,7 @@ export const useStore = create<Store>()(
         dismissedTensions: s.dismissedTensions,
         tensionContext: s.tensionContext,
         deferred: s.deferred,
+        ai: s.ai,
         tabs: s.tabs,
         activeTab: s.activeTab,
         selectedNodeId: s.selectedNodeId,

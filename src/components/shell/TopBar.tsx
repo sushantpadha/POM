@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Info, RefreshCcw, Sprout, Upload, UserRound } from 'lucide-react';
+import { Download, Info, Loader2, RefreshCcw, Sprout, Upload, UserRound } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { Menu } from '../sidebar/Sidebar';
 import { downloadExport } from './transfer';
@@ -8,6 +8,8 @@ export function TopBar() {
   const profile = useStore((s) => s.profile);
   const userName = useStore((s) => s.userName);
   const responses = useStore((s) => s.responses);
+  const busy = useStore((s) => s.busy);
+  const ai = useStore((s) => s.ai);
   const chooseProfile = useStore((s) => s.chooseProfile);
   const setActiveTab = useStore((s) => s.setActiveTab);
   const setDialog = useStore((s) => s.setDialog);
@@ -28,6 +30,16 @@ export function TopBar() {
         <small>prototype</small>
       </div>
       <div className="spacer" />
+      {busy && (
+        <span className="topbar-stat busy" role="status">
+          <Loader2 size={13} className="spin" /> {busy}
+        </span>
+      )}
+      {ai.mode === 'ollama' && ai.consentAt && (
+        <span className="topbar-stat ai-on" title={`AI on: ${ai.model} on this computer`}>
+          AI · {ai.model}
+        </span>
+      )}
       <span className="topbar-stat">
         <b>{Object.keys(responses).length}</b> answer{Object.keys(responses).length === 1 ? '' : 's'}
       </span>

@@ -204,9 +204,9 @@ export function summarize(
  * its own generated lines are condensed first, then one short line per topic file
  * that has notes. Rule-based; no AI is involved.
  */
-export function summarizeBranch(main: NoteFile, topics: NoteFile[], now = nowIso()): Proposal | null {
+export function summarizeBranch(main: NoteFile, topics: NoteFile[], now = nowIso(), ownLines?: string[]): Proposal | null {
   const generated = main.current.entries.filter((e) => !e.locked && e.provenance !== 'human');
-  const own = fallbackSummary(generated);
+  const own = ownLines?.length ? ownLines : fallbackSummary(generated);
   const topicLines = topics
     .map((t) => {
       const body = t.current.entries.filter((e) => e.kind !== 'h');

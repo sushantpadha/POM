@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useStore } from '../../store/store';
 import { fmtDateTime } from '../../logic/format';
+import { AI_CONSENT_TEXT } from '../dialogs/AiSettings';
 
-const STEPS = ['About', 'Your data', 'Question types', 'Consent'];
+const STEPS = ['About', 'Your data & AI', 'Question types', 'Consent'];
 
 export function Onboarding() {
   const onboardedAt = useStore((s) => s.onboardedAt);
@@ -73,7 +74,7 @@ export function Onboarding() {
 
         {step === 1 && (
           <>
-            <h1>Your data</h1>
+            <h1>Your data & AI</h1>
             <ul className="onb-points">
               <li>
                 <b>What is stored:</b> your answers (with dates and how sure you were), the notes made from them, notes you
@@ -85,9 +86,9 @@ export function Onboarding() {
                 profile could read it. You can export it to a file or erase it at any time.
               </li>
               <li>
-                <b>AI:</b> this prototype does not send anything to an AI service. Summaries, tensions and answers in “Ask
-                your model” are pre-written or made by simple rules. In a full version an AI would do this, and its text
-                would stay labelled and separate from your own words. It can be wrong.
+                <b>AI:</b> off by default. You can turn it on later under “Your data”, but only for a model running on this
+                computer through Ollama. {AI_CONSENT_TEXT} Without it, summaries, tensions and Ask use fixed rules and
+                pre-written text. AI text is always labelled, kept apart from your own words, and can be wrong.
               </li>
             </ul>
           </>
@@ -119,7 +120,7 @@ export function Onboarding() {
             <h1>Consent</h1>
             <p className="lead">
               This covers storing your answers and notes in this browser and making notes from them. You would be asked again
-              before anything else, such as sending data to an AI service.
+              before anything else, such as turning on AI.
             </p>
             {onboardedAt && (
               <p className="muted">

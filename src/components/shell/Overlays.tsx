@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Database, Download, Upload, X } from 'lucide-react';
 import { downloadExport } from './transfer';
+import { AiSettings } from '../dialogs/AiSettings';
 import { useStore, type Toast } from '../../store/store';
 import { fmtDateTime } from '../../logic/format';
 
@@ -18,8 +19,8 @@ export function DemoChooser() {
         </div>
         <div className="dialog-body">
           <p>
-            A prototype for putting what you believe, what you think is right, what matters most to you, who you are and what you want into words. It uses no AI service, and
-            everything stays in this browser. You can switch later from the menu at the top right.
+            A prototype for putting what you believe, what you think is right, what matters most to you, who you are and what you want into words. Everything stays in this browser. AI is off unless you turn it on, and then only uses a model on your own computer.
+            You can switch later from the menu at the top right.
           </p>
           <div className="chooser-grid">
             <button className="chooser-card" onClick={() => chooseProfile('fresh')}>
@@ -63,7 +64,8 @@ export function AboutDialog() {
               <b>Where:</b> only in this browser. No server, no account, no encryption.
             </li>
             <li>
-              <b>AI:</b> none is used. Summaries, tensions and “Ask your model” are pre-written or rule-based stand-ins.
+              <b>AI:</b> off unless you turn it on below. It only ever uses a model running on your own computer
+              (Ollama); there is no hosted AI.
             </li>
             <li>
               <b>Not clinical:</b> no diagnosis, score or validated measurement.
@@ -77,6 +79,7 @@ export function AboutDialog() {
               private.
             </li>
           </ul>
+          <AiSettings />
         </div>
         <div className="dialog-foot">
           <button className="btn" onClick={downloadExport}>

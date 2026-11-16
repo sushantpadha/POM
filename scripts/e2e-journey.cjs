@@ -234,6 +234,40 @@ const lineTexts = (page) => page.$$eval('.entries .entry-text', (n) => n.map((x)
   assert(await page.isVisible('.answer-block.interp'), 'Ask keeps its conversation when switching dock tabs');
   await dock(page, 'details');
 
+  // ── AI with the fake provider (dev builds only; a live Ollama is exercised by scripts/ai-eval.mjs) ──
+  await page.evaluate(() => localStorage.setItem('pom-ai-fake', '1'));
+  await page.click('button[title="Your data"]');
+  assert(await page.isVisible('.ai-settings button[aria-checked="true"]:has-text("Off")'), 'AI is off by default');
+  await page.click('.ai-settings button:has-text("Ollama")');
+  assert(await page.isVisible('[data-ai-consent]:has-text("Your notes are sent to the model running on this computer. Nothing leaves it.")'), 'turning AI on asks a second consent');
+  await page.click('[data-ai-consent] button:has-text("I agree")');
+  await page.click('.ai-settings button:has-text("Test connection")');
+  assert(await page.waitForSelector('[data-ai-test="ok"]'), 'Test connection reports the model is installed');
+  await shot(page, '15b-ai-settings');
+  await page.click('.dialog button:has-text("Close")');
+  assert(await page.isVisible('.topbar-stat.ai-on'), 'the top bar shows that AI is on');
+  await dock(page, 'tensions');
+  assert(await page.waitForSelector('[data-tension="work-first-vs-family-duty"] .ai-text:has-text("You said")'), 'with AI on, the model words a tension from the two lines (labelled AI)');
+  await dock(page, 'ask');
+  await page.fill('[data-pane="ask"] textarea', 'What do I owe my parents?');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(3500);
+  assert(!(await page.isVisible('[data-ai-reading]')), 'no reading until the user asks for one');
+  await page.click('[data-pane="ask"] button:has-text("Show a reading") >> nth=-1');
+  assert(await page.waitForSelector('[data-ai-reading] .cite'), 'a reading appears on request, with citations');
+  await shot(page, '15c-ai-reading');
+  await dock(page, 'details');
+  await page.click('[data-file="goals/work-and-study"]');
+  await page.click('.file-toolbar button:has-text("Summarise")');
+  assert(await page.waitForSelector('.proposal-bar:has-text("Draft summary")'), 'an AI summary is still a draft');
+  assert(await page.isVisible('.diff-row .entry-text:has-text("You wrote:")'), 'the draft holds the model’s lines');
+  await page.click('.proposal-bar button:has-text("Cancel")');
+  await page.click('button[title="Your data"]');
+  await page.click('.ai-settings button:has-text("Off")');
+  await page.click('.dialog button:has-text("Close")');
+  await page.evaluate(() => localStorage.removeItem('pom-ai-fake'));
+  assert(!(await page.isVisible('.topbar-stat.ai-on')), 'AI can be turned off again');
+
   // A check-in: "Still true" appends a new dated line to the log.
   await page.click('.tab:has-text("Graph")');
   await clickNode(page, 'checkin');

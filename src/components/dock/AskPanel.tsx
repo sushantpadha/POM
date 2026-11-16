@@ -7,6 +7,33 @@ import { answer, type AskResult } from '../../logic/ask';
 import { ProvenanceIcon } from '../branding';
 import { RichText } from '../notes/RichText';
 import { DockShell } from './Dock';
+import { providerFor } from '../../ai/current';
+import { reading, type AiLine } from '../../ai/tasks';
+import { retrieve } from '../../ai/retrieve';
+import { DIM_LABEL, detectDimensions, headFile } from '../../logic/ask';
+import type { NoteFile } from '../../types';
+
+/**
+ * With AI on, "What your notes say" is assembled by code from the lines retrieval picks (the
+ * same lines the model would see). There is no reading until the user asks for one.
+ */
+function aiAnswer(question: string, files: Record<string, NoteFile>): AskResult {
+  const lines = retrieve(question, files);
+  const dims = detectDimensions(question);
+  const citations = lines.map((l, i) => ({ n: i + 1, fileId: l.fileId, entry: l.entry }));
+  return {
+    dimensions: dims.map((d) => DIM_LABEL[d]),
+    mainFiles: dims.map(headFile),
+    topicFiles: [...new Set(lines.map((l) => l.fileId))].filter((f) => !dims.map(headFile).includes(f)).slice(0, 4),
+    reported: citations.slice(0, 6).map((c) => ({ entry: c.entry, fileId: c.fileId, cite: c.n })),
+    interpretation: [],
+    citations,
+    predefined: false,
+    missingSources: 0,
+  };
+}
+
+type AiState = { status: 'idle' | 'loading' | 'failed' } | { status: 'done'; readings: AiLine[]; notInNotes: boolean };
 
 
 const STEPS = [
@@ -21,6 +48,8 @@ interface Turn {
   question: string;
   result: AskResult;
   stage: number; // 0..5 (5 = done)
+  /** Present when AI was on for this question. */
+  ai?: AiState;
 }
 
 function FileChips({ ids }: { ids: string[] }) {
@@ -52,7 +81,8 @@ function examplesFor(sample: boolean): string[] {
   return [...ASK_SPECS.filter((s) => sample || !s.sampleOnly).map((s) => s.question), LOW_CONFIDENCE_QUESTION];
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+function TurnView({ turn, onReading }: { turn: Turn; onReading: () => void }) {
+  const files = useStore((s) => s.files);
   const openFile = useStore((s) => s.openFile);
   const openQuestionnaire = useStore((s) => s.openQuestionnaire);
   const { result: r, stage } = turn;
@@ -105,17 +135,21 @@ function TurnView({ turn }: { turn: Turn }) {
               <p className="faint">No matching notes were found.</p>
             )}
           </div>
-          <div className="answer-block interp">
-            <div className="bh">
-              <Bot size={12} /> Interpretation{r.predefined ? ' — pre-written' : ''}
+          {turn.ai ? (
+            <AiReading turn={turn} files={files} onReading={onReading} onCite={onCite} />
+          ) : (
+            <div className="answer-block interp">
+              <div className="bh">
+                <Bot size={12} /> Interpretation{r.predefined ? ' — pre-written' : ''}
+              </div>
+              {r.interpretation.map((p, i) => (
+                <p key={i}>
+                  {p.text}
+                  <Cites ns={p.cites} onCite={onCite} />
+                </p>
+              ))}
             </div>
-            {r.interpretation.map((p, i) => (
-              <p key={i}>
-                {p.text}
-                <Cites ns={p.cites} onCite={onCite} />
-              </p>
-            ))}
-          </div>
+          )}
           {r.missingSources > 0 && (
             <div className="disclaimer">
               <AlertTriangle size={13} style={{ flex: 'none', marginTop: 1 }} />
@@ -164,6 +198,49 @@ function TurnView({ turn }: { turn: Turn }) {
   );
 }
 
+/** The model's reading, only on request. A reading is dropped once a line it cites is gone. */
+function AiReading({ turn, files, onReading, onCite }: { turn: Turn; files: Record<string, NoteFile>; onReading: () => void; onCite: (n: number) => void }) {
+  const ai = turn.ai!;
+  const r = turn.result;
+  const exists = (id: string) => Object.values(files).some((f) => f.current.entries.some((e) => e.id === id));
+  const num = (id: string) => r.citations.find((c) => c.entry.id === id)?.n;
+  if (ai.status === 'idle')
+    return (
+      <button className="btn" onClick={onReading} disabled={!r.citations.length}>
+        <Bot size={13} /> Show a reading
+      </button>
+    );
+  if (ai.status === 'loading')
+    return (
+      <div className="answer-block interp" role="status">
+        <Loader2 size={13} className="spin" /> Asking the model on your computer…
+      </div>
+    );
+  if (ai.status === 'failed')
+    return <div className="answer-block interp">No AI reading for this one. The quoted notes above are what your notes say.</div>;
+  if (ai.status !== 'done') return null;
+  const kept = ai.readings.filter((x) => x.cites.every(exists));
+  return (
+    <div className="answer-block interp" data-ai-reading>
+      <div className="bh">
+        <span className="ai-label">AI</span> A reading
+      </div>
+      {ai.notInNotes ? (
+        <p>Your notes do not answer this question.</p>
+      ) : kept.length ? (
+        kept.map((x, i) => (
+          <p key={i}>
+            {x.text}
+            <Cites ns={x.cites.map(num).filter((n): n is number => n !== undefined)} onCite={onCite} />
+          </p>
+        ))
+      ) : (
+        <p className="faint">The reading was removed because a note it cited is gone.</p>
+      )}
+    </div>
+  );
+}
+
 export function AskPanel() {
   const files = useStore((s) => s.files);
   const responses = useStore((s) => s.responses);
@@ -173,11 +250,24 @@ export function AskPanel() {
   const bodyEnd = useRef<HTMLDivElement>(null);
   const EXAMPLES = examplesFor(profile === 'sample');
 
+  const ai = useStore((s) => s.ai);
+  const aiOn = !!providerFor(ai);
+
   const ask = (q: string) => {
     const question = q.trim();
     if (!question) return;
     setInput('');
-    setTurns((t) => [...t, { question, result: answer(question, files, responses, profile === 'sample'), stage: 0 }]);
+    const result = aiOn ? aiAnswer(question, files) : answer(question, files, responses, profile === 'sample');
+    setTurns((t) => [...t, { question, result, stage: 0, ai: aiOn ? { status: 'idle' } : undefined }]);
+  };
+
+  const showReading = async (index: number) => {
+    const provider = providerFor(useStore.getState().ai);
+    if (!provider) return;
+    const setAi = (state: AiState) => setTurns((t) => t.map((x, i) => (i === index ? { ...x, ai: state } : x)));
+    setAi({ status: 'loading' });
+    const res = await reading(provider, turns[index].question, useStore.getState().files);
+    setAi(res ? { status: 'done', readings: res.readings, notInNotes: res.notInNotes } : { status: 'failed' });
   };
 
   // Simulated pipeline: advance one stage at a time.
@@ -242,7 +332,7 @@ export function AskPanel() {
         </>
       )}
       {turns.map((t, i) => (
-        <TurnView key={i} turn={t} />
+        <TurnView key={i} turn={t} onReading={() => void showReading(i)} />
       ))}
       {turns.length > 0 && !busy && (
         <div className="examples">

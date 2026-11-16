@@ -10,6 +10,7 @@ export function FileToolbar({ fileId }: { fileId: string }) {
   const file = useStore((s) => s.files[fileId]);
   const mode = useStore((s) => s.fileModes[fileId] ?? 'notes');
   const setFileMode = useStore((s) => s.setFileMode);
+  const busy = useStore((s) => !!s.busy);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
   const modes: { id: FileMode; label: string }[] = [
@@ -29,8 +30,8 @@ export function FileToolbar({ fileId }: { fileId: string }) {
       <span className="grow" />
       <button
         className="btn"
-        onClick={() => requestSummary(fileId)}
-        disabled={!!file.proposal}
+        onClick={() => void requestSummary(fileId)}
+        disabled={!!file.proposal || busy}
         title={file.proposal ? 'Accept or cancel the current draft first' : 'Draft a shorter version. Your own and locked lines are kept.'}
       >
         Summarise

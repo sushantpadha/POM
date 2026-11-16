@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, Check, Eye } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { MODEL } from '../../store/model';
@@ -10,6 +10,35 @@ import type { Evidence, Tension } from '../../logic/tensions';
 import { ProvenanceIcon } from '../branding';
 import { RichText } from '../notes/RichText';
 import { DockShell } from './Dock';
+import { providerFor } from '../../ai/current';
+import { wordTension } from '../../ai/tasks';
+
+/** AI wordings, per model and pair of lines, so a tension is worded once per session. */
+const worded = new Map<string, Promise<string | null>>();
+
+/** With AI on, the model words the tension from the two lines; rules still decide which pairs show. */
+function useAiWording(t: Tension): { text: string | null; pending: boolean } {
+  const ai = useStore((s) => s.ai);
+  const [state, setState] = useState<{ text: string | null; pending: boolean }>({ text: null, pending: false });
+  const a = t.a[0].entry;
+  const b = t.b[0].entry;
+  useEffect(() => {
+    const provider = providerFor(ai);
+    if (!provider) {
+      setState({ text: null, pending: false });
+      return;
+    }
+    const key = `${provider.name}|${provider.model}|${a.text}|${b.text}`;
+    if (!worded.has(key)) worded.set(key, wordTension(provider, a, b));
+    let live = true;
+    setState({ text: null, pending: true });
+    worded.get(key)!.then((text) => live && setState({ text, pending: false }));
+    return () => {
+      live = false;
+    };
+  }, [ai, a, b]);
+  return state;
+}
 
 function EvidenceItem({ ev }: { ev: Evidence }) {
   const openFile = useStore((s) => s.openFile);
@@ -38,6 +67,7 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
   const openFile = useStore((s) => s.openFile);
   const { available } = useDerived();
   const [writing, setWriting] = useState(false);
+  const aiText = useAiWording(t);
   const [text, setText] = useState('');
   const [target, setTarget] = useState(t.fileIds[0]);
 
@@ -50,7 +80,14 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
   return (
     <div className={`card ${focus ? 'focus' : ''} ${dismissed ? 'dismissed' : ''}`} data-tension={t.rule.id}>
       <h4>{t.rule.title}</h4>
-      <p>{t.rule.summary}</p>
+      {aiText.text ? (
+        <p className="ai-text">
+          <span className="ai-label">AI</span> {aiText.text}
+        </p>
+      ) : (
+        <p>{t.rule.summary}</p>
+      )}
+      {aiText.pending && <p className="faint">Wording this with the model on your computer…</p>}
       {!dismissed && (
         <>
           <div className="evidence">
