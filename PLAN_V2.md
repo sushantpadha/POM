@@ -1,8 +1,18 @@
 # POM v2 — implementation plan
 
-Three goals: (A) five-branch question set of 63 items plus a monthly check-in, (B) calmer, more readable UI, (C) real local AI through
-Ollama. Decisions already made by the owner are marked **Decided**. Work the phases in order; each phase ends with
-`npm run typecheck`, `npm test` and `node scripts/e2e-journey.cjs` green.
+Four goals: (A) a five-branch question set of 63 items plus a monthly check-in, (B) a calmer, more readable UI,
+(C) real local AI through Ollama, (D) an opt-in experiment mode for testing the questions on real people.
+Decisions already made by the owner are marked **Decided**.
+
+How to work:
+
+- Do the phases in order. Each phase ends with `npm run typecheck`, `npm test` and `node scripts/e2e-journey.cjs`
+  green (update the tests and the e2e script as behaviour changes), then one commit.
+- After any UI change, screenshot the affected screens at 1440×900 with Playwright and look at them.
+- Section 2.4 is the heart of the app. Use the item wording as written. If an item fails a rule in 1.3 when you
+  implement it, flag it in your report instead of silently rewriting it.
+- If Ollama cannot be installed or a model cannot be pulled where you run, build Phase 4 against the fake provider,
+  say plainly that the live eval was not run, and leave the eval script ready. Do not invent eval results.
 
 ## 0. Decisions and constraints
 
@@ -14,6 +24,7 @@ Ollama. Decisions already made by the owner are marked **Decided**. Work the pha
 - **Decided:** AI runs on the user's own Ollama. No hosted API, no in-browser model.
 - **Decided:** saved data may be broken. Bump the storage version and discard old data on load.
 - **Decided:** every answer is applied to the notes immediately. No draft/commit step for answers.
+- **Decided:** experiment mode keeps its log in the browser and the tester exports a file. No collection server.
 - Core features that must survive: file tree, readable and editable notes, focused questionnaire, Ask, tensions,
   retakes, version history, locks, provenance, export/import, reset/erase topic.
 - Items are our own wording. "Adapted" = paraphrase of a published item; "informed" = our wording on a published
@@ -94,9 +105,12 @@ that gets a shrug, a "what does this mean" or a skipped text box. Psychologist r
 - `Question.tagsFor?: (value) => string[]` — value-dependent tags. When present it replaces `selfTags` for
   activation; `selfTags` stays the static superset used to derive graph edges and DAG validation.
 - `Question.log?: boolean` — each answer appends a dated line instead of replacing the previous one (check-in).
+- `G1` keeps the existing `project` type with a single rating (control).
+- The `checkin` node uses `branch: 'root'` (neutral colour). Export a `QUESTION_SET_VERSION` constant.
 - `Response.note?: string` — the optional "Add a note" text; written as a human-provenance line under the answer.
 - Update `logic/graph.ts` (activation, progress, exploration) and its tests for these additions.
 - Bump the persisted-store version in `store/store.ts`; on mismatch, start empty.
+- Update onboarding copy, toasts and any other text that names the old three branches.
 
 ### 2.2 Branch test (keeps branches distinct)
 
@@ -133,12 +147,13 @@ Each branch node opens from `#onboarded`. Deeper nodes use OR on parent tags, as
 | `fairness` | Fairness & Loyalty | `loyalty` | `moral/fairness-and-loyalty` |
 | `family` | Family Duty | `family-duty` (M5) **or** `relationships` (G4) | `moral/family-duty` |
 
-`checkin` is not part of any branch: neutral colour, and its file sits at the top of the tree.
+`checkin` is not part of any branch: neutral colour, and its file sits at the top of the tree. Folder order in the
+tree: check-ins, worldview, moral, priorities, identity, goals.
 
 ### 2.4 Items
 
 63 branch items, a 4-item monthly check-in and 4 opt-in one-liners. A first visit shows only the five entry nodes
-(24 items, about two minutes each); the rest opens from answers.
+(25 items, about two minutes per node); the rest opens from answers.
 
 Formats: L = 5-point agree/disagree, C = pick one, M = pick several, R = rank, S = 0–10 slider, T = one line of text.
 St/Fl = stable/flexible. `+c` = also ask confidence. Old id in brackets where the item is carried over.
@@ -260,7 +275,7 @@ items, its `fileIds`, and a `note()` that writes a natural first-person sentence
   2. `P2` ranks work or studies first and `M5 ≥ 7`.
   3. `P2`'s first-ranked area differs from `C1` in the latest check-in — where I want my attention, and where the
      time went.
-  4. `PC1 = take` and `P1` is family or close relationships.
+  4. `PC1 = take` and `P1` is family, or partner or close relationships.
   5. `P1 = partner or close relationships` and `PT3 = where the best opportunities are`.
   6. `P3` includes security and `PT2 = an open, changing life`.
   7. `W1 ≥ 4` (agree) and `WC3 ≤ 3` — choices matter, yet a recent success credited to luck.
@@ -279,6 +294,7 @@ items, its `fileIds`, and a `note()` that writes a natural first-person sentence
 
 - `setResponse` writes the note line straight into `file.current` (insert, or replace the unlocked line with the
   same `sourceItemId`). `clearResponse` removes that line if it is unlocked and unedited.
+- Timing: taps apply at once, sliders on release, text on blur or Next (not per keystroke).
 - A locked line is never changed: keep it, add the new line after it, toast "Kept your locked line".
 - Versioning: reuse the session grouping used for manual edits. One new version per file per browser session.
 - Remove the answer draft flow: `submitQuestionnaire` proposals, `ProposalView` for `generated-update`, the "Review
@@ -336,13 +352,13 @@ Rules:
 - Every question has a collapsed "Add a note" link for one line in the user's own words.
 - The Done screen shows "Same as last time: N" and each changed answer as old → new.
 - The map marks Personal Priorities "Start here" until it has an answer.
-- Depth-gate answers "settled" or "simple" end the node early with the Done screen.
+- Depth-gate answers "settled" or "simple" hide that area's follow-ups (`showIf`); items outside the gate still show.
 
 ### 4.5 Graph (`GraphView.tsx`)
 
 - Keep d3-force, drag, pan, zoom and the living motion.
 - Add a sector force: each branch gets a 72° wedge around the root, so five branches stop crossing. Cross-branch
-  nodes (`family`, `clashes`) sit between their parents' wedges.
+  nodes (`family`, `clashes`) sit between their parents' wedges; `checkin` sits beside Priorities.
 - Hover a node: dim unrelated nodes and edges. Labels fade out below a zoom threshold except branch nodes.
 - Nodes use branch colours; "new" marker in `--warn`. Shorten the legend to one line.
 
@@ -381,6 +397,7 @@ Request shape (check field names against the current Ollama API docs before rely
 - New "AI" section in the data dialog: Off / Ollama, base URL (default `http://localhost:11434`), model picker
   filled from `/api/tags`, "Test connection".
 - Turning it on asks a second consent: "Your notes are sent to the model running on this computer. Nothing leaves it."
+- Update the onboarding "Your data & AI" step to say the same.
 - README section: `ollama pull qwen3:4b`; for the hosted Pages build set `OLLAMA_ORIGINS=https://<user>.github.io`
   before starting Ollama. From `localhost` dev no setting is needed.
 
@@ -445,7 +462,8 @@ Each task prompt carries one short worked example (input and output) built from 
 
 ## 6. Phase 5 — experiment mode
 
-Purpose: learn from real testers which items work (section 1.4). Off by default.
+Purpose: learn from real testers which items work (section 1.4). Off by default. It does not depend on Phase 4;
+AI events are logged only when AI exists.
 
 - **Where:** data dialog → Advanced options → one checkbox, "Experiment mode".
 - **The one line under it:** "Records every answer, note and click with timestamps in this browser, so you can
@@ -468,8 +486,6 @@ Purpose: learn from real testers which items work (section 1.4). Off by default.
   the table that decides which items to cut.
 - **Tests:** nothing is logged with the mode off; events are logged with it on; the cap holds; delete empties the key.
 
-Open decision for the owner: logs reach the team by the tester sending the exported file. A collection endpoint
-would need a server, a privacy notice and a stronger consent line; it is out of scope unless asked for.
 
 ## 7. Phase 6 — docs and wrap-up
 
@@ -480,5 +496,5 @@ would need a server, a privacy notice and a stronger consent line; it is out of 
 
 ## 8. Out of scope
 
-Mobile layout, accounts or sync, hosted AI, in-browser models, embeddings-based retrieval, scoring or norms,
+Mobile layout, accounts or sync, hosted AI, a server that collects experiment logs, in-browser models, embeddings-based retrieval, scoring or norms,
 psychologist review of items (still recommended before selling).
