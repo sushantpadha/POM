@@ -4,26 +4,32 @@ import type { NodeStatus } from '../logic/graph';
 
 export const BRANCH_COLOR: Record<Branch, string> = {
   root: 'var(--root)',
-  ethics: 'var(--ethics)',
   worldview: 'var(--worldview)',
+  moral: 'var(--moral)',
+  priorities: 'var(--priorities)',
+  identity: 'var(--identity)',
   goals: 'var(--goals)',
 };
 
 /** Hex versions for SVG fills that need alpha blending. Keep in sync with styles.css. */
 export const BRANCH_HEX: Record<Branch, string> = {
   root: '#cfcac1',
-  ethics: '#c4a882',
-  worldview: '#8eaaa3',
-  goals: '#a89db6',
+  worldview: '#5cb8ab',
+  moral: '#e38d73',
+  priorities: '#c9cf63',
+  identity: '#e07fb0',
+  goals: '#6fa8e8',
 };
 
 export const ACCENT_HEX = '#a7b8a4';
 
 export const BRANCH_LABEL: Record<Branch, string> = {
   root: 'Start',
-  ethics: 'Ethics',
-  worldview: 'Worldview / Beliefs',
-  goals: 'Long-term Goals',
+  worldview: 'Worldview & Beliefs',
+  moral: 'Moral Principles',
+  priorities: 'Personal Priorities',
+  identity: 'Identity & Self-concept',
+  goals: 'Goals & Aspirations',
 };
 
 export const STATUS_LABEL: Record<NodeStatus, string> = {
@@ -41,7 +47,7 @@ export const PROVENANCE: Record<Provenance, { label: string; Icon: typeof Hand }
 
 export const SOURCE_LABEL: Record<SourceKind, string> = {
   adapted: 'Adapted',
-  informed: 'New · research-informed',
+  informed: 'Informed',
   new: 'New',
 };
 

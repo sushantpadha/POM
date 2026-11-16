@@ -1,5 +1,5 @@
-import type { Entry, NoteFile, Response } from '../types';
-import { ASK_SPECS, LOW_CONFIDENCE_QUESTION, type AskSpec, type Ref } from '../data/ask';
+import type { Dir, Entry, NoteFile, Response } from '../types';
+import { ASK_SPECS, LOW_CONFIDENCE_QUESTION, type Ref } from '../data/ask';
 import { MODEL } from '../store/model';
 
 export interface Citation {
@@ -19,35 +19,49 @@ export interface AskResult {
   missingSources: number;
 }
 
-const DIM_LABEL: Record<string, string> = {
-  ethics: 'Ethics',
-  worldview: 'Worldview / Beliefs',
-  'long-term-goals': 'Long-term goals',
+export const DIM_LABEL: Record<Dir, string> = {
+  worldview: 'Worldview & Beliefs',
+  moral: 'Moral Principles',
+  priorities: 'Personal Priorities',
+  identity: 'Identity & Self-concept',
+  goals: 'Goals & Aspirations',
+  'check-ins': 'Check-ins',
 };
+
+const BRANCH_DIRS: Dir[] = ['worldview', 'moral', 'priorities', 'identity', 'goals'];
+
+/** The file that heads a folder: `main`, or the log for check-ins. */
+export const headFile = (d: Dir) => (d === 'check-ins' ? 'check-ins/log' : `${d}/main`);
 
 function resolve(ref: Ref, files: Record<string, NoteFile>): { fileId: string; entry: Entry } | null {
   if ('entryId' in ref) {
     const entry = files[ref.fileId]?.current.entries.find((e) => e.id === ref.entryId);
     return entry ? { fileId: ref.fileId, entry } : null;
   }
-  // Prefer the line generated from the answer; fall back to an AI line citing the same item.
+  // Prefer the line generated from the answer (the latest one, for check-ins);
+  // fall back to an AI line citing the same item.
+  let best: { fileId: string; entry: Entry } | null = null;
   let fallback: { fileId: string; entry: Entry } | null = null;
   for (const f of Object.values(files)) {
     for (const e of f.current.entries) {
-      if (e.sourceItemId !== ref.qid) continue;
-      if (e.provenance !== 'ai') return { fileId: f.id, entry: e };
-      fallback ??= { fileId: f.id, entry: e };
+      if (e.sourceItemId !== ref.qid || e.answerNote) continue;
+      if (e.provenance !== 'ai') {
+        if (!best || e.createdAt > best.entry.createdAt) best = { fileId: f.id, entry: e };
+      } else fallback ??= { fileId: f.id, entry: e };
     }
   }
-  return fallback;
+  return best ?? fallback;
 }
 
-function detectDimensions(q: string): AskSpec['dimensions'] {
-  const dims: AskSpec['dimensions'] = [];
-  if (/ethic|moral|harm|right|wrong|family|obligat|duty/i.test(q)) dims.push('ethics');
-  if (/believ|worldview|agency|knowledge|truth|control|strang/i.test(q)) dims.push('worldview');
-  if (/goal|career|future|plan|relationship|work|ambition/i.test(q)) dims.push('long-term-goals');
-  return dims.length ? dims : ['ethics', 'worldview', 'long-term-goals'];
+export function detectDimensions(q: string): Dir[] {
+  const dims: Dir[] = [];
+  if (/believ|worldview|world|trust|luck|truth|control|faith|relig|people are/i.test(q)) dims.push('worldview');
+  if (/ethic|moral|right|wrong|owe|duty|honest|loyal|fair|promise|parent|family/i.test(q)) dims.push('moral');
+  if (/priorit|matter|value|trade|money|clash|attention|time/i.test(q)) dims.push('priorities');
+  if (/who am i|myself|identity|strength|role|tend|self|person i want/i.test(q)) dims.push('identity');
+  if (/goal|career|future|plan|work|stud|job|offer|home|live|relationship|partner|ambition/i.test(q)) dims.push('goals');
+  if (/check.?in|month|lately|recent/i.test(q)) dims.push('check-ins');
+  return dims.length ? dims : BRANCH_DIRS;
 }
 
 export function answer(
@@ -74,10 +88,10 @@ export function answer(
     const hits = qids.map((qid) => resolve({ qid }, files)).filter((x): x is NonNullable<typeof x> => !!x);
     const reported = hits.map((h) => ({ ...h, cite: cite(h.fileId, h.entry) }));
     const nodes = [...new Set(qids.map((id) => MODEL.questions.find((q) => q.id === id)!.nodeId))];
-    const dims = [...new Set(hits.map((h) => h.fileId.split('/')[0]))];
+    const dims = [...new Set(hits.map((h) => h.fileId.split('/')[0] as Dir))];
     return {
       dimensions: dims.map((d) => DIM_LABEL[d]),
-      mainFiles: dims.map((d) => `${d}/main`),
+      mainFiles: dims.map(headFile),
       topicFiles: [...new Set(hits.map((h) => h.fileId))].filter((f) => !f.endsWith('/main')),
       reported,
       interpretation: [
@@ -110,7 +124,7 @@ export function answer(
     if (interpretation.length) {
       return {
         dimensions: spec.dimensions.map((d) => DIM_LABEL[d]),
-        mainFiles: spec.dimensions.map((d) => `${d}/main`),
+        mainFiles: spec.dimensions.map(headFile),
         topicFiles: spec.topicFiles,
         reported,
         interpretation,
@@ -123,13 +137,13 @@ export function answer(
 
   // Generic retrieval: relevant main files, then topic files, quoting user-reported lines.
   const dims = spec?.dimensions ?? detectDimensions(question);
-  const mainFiles = dims.map((d) => `${d}/main`);
+  const mainFiles = dims.map(headFile);
   const topicFiles = Object.keys(files).filter(
-    (id) => dims.some((d) => id.startsWith(`${d}/`)) && !id.endsWith('/main') && files[id].current.entries.length,
+    (id) => dims.some((d) => id.startsWith(`${d}/`)) && !mainFiles.includes(id) && files[id].current.entries.length,
   );
   const reported: AskResult['reported'] = [];
   for (const fileId of [...mainFiles, ...topicFiles]) {
-    const lines = files[fileId].current.entries.filter((e) => e.kind !== 'h' && e.provenance !== 'ai').slice(0, 2);
+    const lines = files[fileId].current.entries.filter((e) => e.kind !== 'h' && e.provenance !== 'ai').slice(-2);
     for (const e of lines) reported.push({ fileId, entry: e, cite: cite(fileId, e) });
     if (reported.length >= 6) break;
   }

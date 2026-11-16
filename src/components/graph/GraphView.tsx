@@ -14,7 +14,7 @@ import { useStore } from '../../store/store';
 import { MODEL } from '../../store/model';
 import { NODE_BY_ID } from '../../data/nodes';
 import { useDerived } from '../../hooks/useDerived';
-import { globalExploration } from '../../logic/graph';
+import { globalExploration, visibleQuestions } from '../../logic/graph';
 import { ACCENT_HEX, BRANCH_HEX, STATUS_LABEL } from '../branding';
 
 interface SimNode extends SimulationNodeDatum {
@@ -374,7 +374,7 @@ export function GraphView() {
             const st = status[id];
             const color = BRANCH_HEX[node.branch];
             const r = st === 'locked' ? n.r * 0.75 : n.r;
-            const qs = MODEL.questionsByNode[id];
+            const qs = visibleQuestions(MODEL, id, responses);
             const frac = qs.length ? qs.filter((q) => responses[q.id]).length / qs.length : 0;
             const selected = selectedId === id;
             const dim = neighbours && !neighbours.has(id);

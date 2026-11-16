@@ -14,9 +14,11 @@
   --text-faint: #6c6861;
   --accent: #a7b8a4;
   --accent-soft: rgba(167, 184, 164, 0.12);
-  --ethics: #c4a882;
-  --worldview: #8eaaa3;
-  --goals: #a89db6;
+  --worldview: #5cb8ab;
+  --moral: #e38d73;
+  --priorities: #c9cf63;
+  --identity: #e07fb0;
+  --goals: #6fa8e8;
   --root: #cfcac1;
   --human: #a3b693;
   --auto: #93a3b5;
@@ -585,3 +587,23 @@ textarea.input:focus, input.input:focus { border-color: var(--accent); }
 .qn-steps button.active { background: var(--surface-3); color: var(--text); border-color: var(--text-dim); }
 .why-link { background: none; border: 0; padding: 0; margin-top: 2px; cursor: pointer; font-size: 12.5px; color: var(--text-faint); text-decoration: underline; text-underline-offset: 3px; }
 .why-link:hover { color: var(--text-dim); }
+
+/* ── Multi-select chips ───────────────────────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-opt {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 999px; padding: 6px 13px; cursor: pointer; font-size: 13.5px;
+}
+.chip-opt:hover:not(:disabled) { background: var(--surface-3); }
+.chip-opt.sel { border-color: var(--accent); background: var(--accent-soft); }
+.chip-opt.none { border-style: dashed; }
+.chip-opt.none.sel { border-style: solid; }
+.chip-opt:disabled { opacity: 0.4; cursor: not-allowed; }
+.last-time {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); font-size: 13px;
+}
+.last-time .grow { color: var(--text-dim); }
+.then-now { margin: 6px 0 0; padding: 0; list-style: none; }
+.then-now li { padding: 6px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.then-now .old { color: var(--text-faint); text-decoration: line-through; }

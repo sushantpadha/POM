@@ -1,6 +1,7 @@
 // Core domain types for the Personal Operating Model prototype.
 
-export type Branch = 'root' | 'ethics' | 'worldview' | 'goals';
+export type Branch = 'root' | 'worldview' | 'moral' | 'priorities' | 'identity' | 'goals';
+export type Dir = 'worldview' | 'moral' | 'priorities' | 'identity' | 'goals' | 'check-ins';
 export type Stability = 'stable' | 'flexible';
 /**
  * Where an item comes from (matches the writeup's Source column):
@@ -11,7 +12,7 @@ export type Stability = 'stable' | 'flexible';
 export type SourceKind = 'adapted' | 'informed' | 'new';
 export type Provenance = 'human' | 'auto' | 'ai';
 
-export type QuestionType = 'likert' | 'choice' | 'rank' | 'text' | 'slider' | 'sliders' | 'project';
+export type QuestionType = 'likert' | 'choice' | 'multi' | 'rank' | 'text' | 'slider' | 'sliders' | 'project';
 
 export interface Option {
   value: string;
@@ -26,16 +27,31 @@ export interface Question {
   /** Shown behind "Why we ask this". Falls back to the source note. */
   why?: string;
   type: QuestionType;
-  /** For choice / rank questions. */
+  /** For choice / multi / rank questions. */
   options?: Option[];
+  /** Multi-select: the most options that can be picked. */
+  max?: number;
+  /** Multi-select: an option ("None of these", "Not sure yet") that clears the others when picked. */
+  exclusive?: string;
+  /** Example answer shown in an empty text box. */
+  placeholder?: string;
   /** For sliders / project questions: one 0–10 slider per option. */
   sliders?: Option[];
   /** End labels for agreement scales and 0–10 sliders. */
   scale?: [string, string];
   /** Notes files this answer updates. */
   fileIds: string[];
-  /** Tags activated when this question is answered. */
+  /**
+   * Static superset of the tags this question can activate. Used to derive graph edges and
+   * validate the DAG; also the activated tags unless `tagsFor` is given.
+   */
   selfTags: string[];
+  /** Value-dependent tags. When present it replaces `selfTags` for activation. */
+  tagsFor?: (value: AnswerValue) => string[];
+  /** Hidden questions are skipped by the runner and left out of progress counts. */
+  showIf?: (responses: Record<string, Response>) => boolean;
+  /** Each answer appends a dated line instead of replacing the previous one (monthly check-in). */
+  log?: boolean;
   stability: Stability;
   source: SourceKind;
   /** Short citation / rationale for the source label. */
@@ -57,6 +73,8 @@ export interface Response {
   value: AnswerValue;
   confidence?: number; // 1–5
   answeredAt: string; // ISO
+  /** The optional "Add a note" text, kept as the user's own line under the generated one. */
+  note?: string;
   /** Previous answers to the same item (most recent last). */
   history?: { value: AnswerValue; confidence?: number; answeredAt: string }[];
 }
@@ -89,6 +107,8 @@ export interface Entry {
   updatedAt: string;
   provenance: Provenance;
   sourceItemId?: string;
+  /** Set on the line that holds a response's "Add a note" text. */
+  answerNote?: boolean;
   locked: boolean;
 }
 
@@ -108,9 +128,9 @@ export interface Proposal extends FileVersion {
 }
 
 export interface NoteFile {
-  id: string; // e.g. "ethics/family-obligations"
-  dir: 'ethics' | 'worldview' | 'long-term-goals';
-  name: string; // e.g. "family-obligations"
+  id: string; // e.g. "moral/family-duty"
+  dir: Dir;
+  name: string; // e.g. "family-duty"
   title: string;
   current: FileVersion;
   /** Most recent last; capped at 5. */

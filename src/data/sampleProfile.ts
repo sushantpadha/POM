@@ -1,18 +1,111 @@
-// Sample profile: "Priya", a 24-year-old MSc student in computational biology who
-// started using the prototype in March 2026 and has an offer for a three-year PhD
-// position in Zurich. Notes are written in the first person. Fictional data.
-import type { Entry, EntryKind, FileVersion, NodeProgress, NoteFile, Provenance, Response } from '../types';
+// Sample profile: "Priya", a 24-year-old MSc student in computational biology in Pune who
+// started using the app in March 2026 and has an offer for a three-year PhD position in
+// Zurich (deadline 15 Dec 2026). Notes are in the first person. Fictional data.
+//
+// Generated lines are built with each question's own note() so they read exactly as the app
+// would write them. Lines Priya wrote herself, summary lines and locks are added by hand.
+import type { AnswerValue, Entry, FileVersion, NodeProgress, NoteFile, Provenance, Response } from '../types';
 import { FILE_DEFS } from './files';
+import { QUESTION_BY_ID } from './questions';
+import { logDate } from '../logic/notes';
 
 const at = (date: string, time = '10:00') => `${date}T${time}:00.000Z`;
 
-function e(
+// ── Answers ───────────────────────────────────────────────────
+
+type Hist = NonNullable<Response['history']>;
+const h = (value: AnswerValue, date: string, confidence?: number): Hist[number] => ({ value, answeredAt: at(date), confidence });
+const r = (value: AnswerValue, date: string, opts: { confidence?: number; history?: Hist; note?: string } = {}): Response => ({
+  value,
+  answeredAt: at(date),
+  confidence: opts.confidence,
+  history: opts.history,
+  note: opts.note,
+});
+
+const P2_MARCH = ['family', 'work', 'health', 'partner', 'friends', 'learning'];
+const THESIS = 'Finishing my MSc thesis on early cancer detection from blood samples';
+
+export const SAMPLE_RESPONSES: Record<string, Response> = {
+  // Personal Priorities (March, retaken in September)
+  P1: r('family', '2026-09-12', { history: [h('family', '2026-03-14')] }),
+  P2: r(['work', 'family', 'health', 'friends', 'partner', 'learning'], '2026-09-12', { history: [h(P2_MARCH, '2026-03-14')] }),
+  P3: r(['autonomy', 'relationships', 'achievement'], '2026-09-12', { history: [h(['autonomy', 'relationships', 'achievement'], '2026-03-14')] }),
+  P4: r('freedom', '2026-03-14'),
+  P5: r(['problems', 'impact'], '2026-03-14'),
+  PT1: r('time', '2026-03-15'),
+  PT2: r('stable', '2026-03-15'),
+  PT3: r('near', '2026-03-15'),
+  // Worldview (March, retaken in August)
+  W1: r(4, '2026-08-02', { history: [h(5, '2026-03-16')] }),
+  W2: r(4, '2026-03-16'),
+  W3: r(4, '2026-03-16'),
+  W4: r(2, '2026-08-02', { history: [h(4, '2026-03-16')] }),
+  W5: r('I used to think hard work was enough. Watching friends put in the same effort and end up in very different places changed that.', '2026-08-02'),
+  WC1: r('internal', '2026-10-11'),
+  WC3: r(4, '2026-10-11'),
+  // Moral Principles
+  M1: r('talk', '2026-03-20'),
+  M2: r('soften', '2026-03-20'),
+  M3: r('outcome', '2026-03-20'),
+  M4: r(3, '2026-03-20'),
+  M5: r(8, '2026-03-20', { confidence: 1 }),
+  MR1: r(2, '2026-03-25'),
+  MR2: r('yes', '2026-03-25'),
+  MR3: r('Take credit for someone else’s work.', '2026-03-25'),
+  MD1: r('gratitude', '2026-04-10', { note: 'Gratitude, but love too; it is hard to separate them.' }),
+  MD2: r(2, '2026-04-10'),
+  MD3: r('It doesn’t require giving up my career, but it does require being reachable and back for the big moments. The line is being absent for something that can’t be repeated.', '2026-04-10'),
+  // Identity
+  I1: r('Curious, stubborn, loyal', '2026-04-02'),
+  I2: r(['curiosity', 'persistence', 'honesty'], '2026-04-02'),
+  I3: r(['student', 'child', 'friend'], '2026-04-02'),
+  I4: r(4, '2026-04-02'),
+  IT1: r(2, '2026-04-05'),
+  IT2: r(4, '2026-04-05'),
+  IT3: r(4, '2026-04-05'),
+  IT4: r(4, '2026-04-05'),
+  IT5: r(4, '2026-04-05'),
+  // Goals (May, retaken in September)
+  G1: r({ text: THESIS, ratings: { control: 6 } }, '2026-09-12', { history: [h({ text: THESIS, ratings: { control: 7 } }, '2026-05-18')] }),
+  G2: r('A lab with a small team building open diagnostic tools, home for dinner, and a weekend train back to Pune once a month.', '2026-05-18'),
+  G3: r('narrowing', '2026-05-18'),
+  G4: r(['partner', 'near-parents', 'friends', 'abroad'], '2026-05-18'),
+  G5: r('The Zurich PhD offer: I have to answer by 15 Dec 2026.', '2026-09-12'),
+  G6: r(['parents'], '2026-05-18'),
+  GM2: r('Be in Pune for the big moments, and move back if one of them needs daily care.', '2026-06-20'),
+  GC1: r('explore', '2026-09-14'),
+  GC2: r('Zurich PhD in diagnostics — active\nIndustry diagnostics job in Bengaluru — interested\nTeaching — untried', '2026-09-14'),
+  GC3: r('The Zurich lab is the best fit for the detection work, and I would regret not trying.', '2026-09-14'),
+  GC4: r('A month of contract work at a diagnostics start-up over the winter break.', '2026-09-14'),
+  GC5: r(7, '2026-09-14'),
+  GH1: r('explore', '2026-06-20'),
+  GH2: r('A few years abroad, then somewhere within a day’s travel of Pune.', '2026-06-20'),
+  // Monthly check-ins: August, September, October
+  C1: r('work', '2026-10-14', { history: [h('work', '2026-08-14'), h('work', '2026-09-14')] }),
+  C2: r(4, '2026-10-14', { history: [h(6, '2026-08-14'), h(5, '2026-09-14')] }),
+  C3: r(4, '2026-10-14', { history: [h(6, '2026-08-14'), h(5, '2026-09-14')] }),
+  C4: r('Told Aai and Baba about Zurich. Baba went quiet.', '2026-10-14', {
+    history: [h('Thesis deadline moved up; skipped two weekend calls home.', '2026-08-14'), h('Got the Zurich offer.', '2026-09-14')],
+  }),
+};
+
+// ── Lines ─────────────────────────────────────────────────────
+
+/** A generated line, worded by the question's own note(). */
+function a(id: string, qid: string, value: AnswerValue, created: string, opts: { updated?: string; locked?: boolean } = {}): Entry {
+  const q = QUESTION_BY_ID[qid];
+  const text = q.log ? `${logDate(at(created))} — ${q.note(value)}` : q.note(value);
+  return line(id, q.type === 'text' ? 'quote' : 'li', text, 'auto', created, { ...opts, src: qid });
+}
+
+function line(
   id: string,
-  kind: EntryKind,
+  kind: Entry['kind'],
   text: string,
   provenance: Provenance,
   created: string,
-  opts: { updated?: string; src?: string; locked?: boolean } = {},
+  opts: { updated?: string; src?: string; locked?: boolean; answerNote?: boolean } = {},
 ): Entry {
   return {
     id,
@@ -22,9 +115,13 @@ function e(
     createdAt: at(created),
     updatedAt: at(opts.updated ?? created),
     sourceItemId: opts.src,
+    answerNote: opts.answerNote,
     locked: opts.locked ?? false,
   };
 }
+const human = (id: string, text: string, created: string, opts: { updated?: string; src?: string; locked?: boolean } = {}) =>
+  line(id, 'li', text, 'human', created, opts);
+const ai = (id: string, text: string, created: string, src?: string) => line(id, 'li', text, 'ai', created, { src });
 
 const v = (id: string, date: string, reason: string, entries: Entry[]): FileVersion => ({
   versionId: id,
@@ -32,153 +129,182 @@ const v = (id: string, date: string, reason: string, entries: Entry[]): FileVers
   reason,
   entries,
 });
-
 const locked = (x: Entry, date: string): Entry => ({ ...x, locked: true, updatedAt: at(date) });
 const edited = (x: Entry, text: string, date: string): Entry => ({ ...x, text, updatedAt: at(date) });
+const R = SAMPLE_RESPONSES;
+const hv = (qid: string, i = 0) => R[qid].history![i].value;
 
-// ── ethics/main ───────────────────────────────────────────────
-const em1 = e('em1', 'h', 'Summary', 'ai', '2026-03-20');
-const em2 = e('em2', 'li', 'Leans towards avoiding harm: an action that could hurt an innocent person is ruled out, even a small risk.', 'ai', '2026-03-20', { src: 'MP1' });
-const em3 = e('em3', 'li', 'Undecided on whether ethics depends on culture, but thinks whether a lie is wrong depends on the circumstances.', 'ai', '2026-03-20', { src: 'E2' });
-const em4 = e('em4', 'li', 'Family is where my principles get tested most — see [[ethics/family-obligations]].', 'human', '2026-04-10');
-const em5 = e('em5', 'li', 'Open question: I avoid harm almost absolutely, yet I’d break a promise to prevent it. Is that consistent?', 'human', '2026-09-20');
+// check-ins/log
+const c1a = a('cl1', 'C1', hv('C1'), '2026-08-14');
+const c2a = a('cl2', 'C2', hv('C2'), '2026-08-14');
+const c3a = a('cl3', 'C3', hv('C3'), '2026-08-14');
+const c4a = a('cl4', 'C4', hv('C4'), '2026-08-14');
+const c1b = a('cl5', 'C1', hv('C1', 1), '2026-09-14');
+const c2b = a('cl6', 'C2', hv('C2', 1), '2026-09-14');
+const c3b = a('cl7', 'C3', hv('C3', 1), '2026-09-14');
+const c4b = a('cl8', 'C4', hv('C4', 1), '2026-09-14');
+const c1c = a('cl9', 'C1', R.C1.value, '2026-10-14');
+const c2c = a('cl10', 'C2', R.C2.value, '2026-10-14');
+const c3c = a('cl11', 'C3', R.C3.value, '2026-10-14');
+const c4c = a('cl12', 'C4', R.C4.value, '2026-10-14');
+const clh = human('cl13', 'Three months running, most of my time went to the thesis.', '2026-10-15');
 
-// ── ethics/moral-principles ───────────────────────────────────
-const mp1 = e('mp1', 'h', 'How I judge actions', 'auto', '2026-03-14');
-const mp2 = e('mp2', 'li', 'If an action could harm an innocent person, I think it should not be done.', 'auto', '2026-03-14', { src: 'E1' });
-const mp3 = e('mp3', 'li', 'I am undecided on whether ethics depends on the situation and culture.', 'auto', '2026-03-14', { src: 'E2' });
-const mp4 = e('mp4', 'quote', 'Promise vs. minor harm: “Probably yes, if the harm is real and the promise is small. I’d tell the person afterwards why I broke it.”', 'auto', '2026-03-14', { src: 'E3' });
-const mp5 = e('mp5', 'li', 'When I judge an action I look first at its consequences, then the intentions behind it.', 'auto', '2026-03-14', { src: 'E5' });
-const mp6 = e('mp6', 'li', 'Risking harm to another person is never acceptable to me, even a small risk.', 'auto', '2026-03-20', { src: 'MP1' });
-const mp7 = e('mp7', 'li', 'Doing the right thing should not mean someone gets hurt.', 'auto', '2026-03-20', { src: 'MP2' });
-const mp8 = e('mp8', 'li', 'Whether a lie is wrong depends on the circumstances.', 'auto', '2026-03-20', { src: 'MP3' });
-const mp9 = e('mp9', 'li', 'I think moral standards are shared, not just personal.', 'auto', '2026-03-20', { src: 'MP4' });
-const mp10 = e('mp10', 'li', 'Volunteering at the screening clinic made “harms of omission” feel real, not abstract.', 'human', '2026-05-02');
+// worldview/main
+const w1a = a('wm1', 'W1', hv('W1'), '2026-03-16');
+const w1b = edited({ ...w1a }, QUESTION_BY_ID.W1.note(R.W1.value), '2026-08-02');
+const w2 = a('wm2', 'W2', R.W2.value, '2026-03-16');
+const w3 = a('wm3', 'W3', R.W3.value, '2026-03-16');
+const w4a = a('wm4', 'W4', hv('W4'), '2026-03-16');
+const w4b = edited({ ...w4a }, QUESTION_BY_ID.W4.note(R.W4.value), '2026-08-02');
+const wmh = human('wm5', 'These are prompts for reflection, not a personality result.', '2026-03-18');
+const w5 = a('wm6', 'W5', R.W5.value, '2026-08-02');
+const wmai = ai('wm7', 'Still sees own choices as the main driver, but less firmly than in March (5 → 4), and no longer agrees that hard work usually pays off.', '2026-08-03', 'W1');
 
-// ── ethics/family-obligations ─────────────────────────────────
-const fo1 = e('fo1', 'h', 'What I owe my family', 'auto', '2026-03-14');
-const fo2 = e('fo2', 'li', 'What I owe my elders in time, money or career decisions: 8/10 — a lot.', 'auto', '2026-03-14', { src: 'E4' });
-const fo3 = e('fo3', 'li', 'I want to support my parents later in life because of what they have given me.', 'auto', '2026-04-10', { src: 'FR1' });
-const fo4 = e('fo4', 'li', 'On major decisions, I think children can go against their parents’ wishes.', 'auto', '2026-04-10', { src: 'FR2' });
-const fo5 = e('fo5', 'quote', 'Where the obligation stops: “It doesn’t require giving up my career, but it does require being reachable and back for the big moments. The line is being absent for something that can’t be repeated.”', 'auto', '2026-04-10', { src: 'FR3' });
-const fo6 = e('fo6', 'li', 'Owes family a lot (8/10), framed as gratitude rather than obedience; the limit named is missing moments that can’t be repeated.', 'ai', '2026-04-11', { src: 'FR1' });
-const fo7 = e('fo7', 'li', 'Aai’s knee surgery is planned for spring 2027. I want to be in Pune for at least the first month.', 'human', '2026-06-15');
-const fo7b = edited(fo7, 'Aai’s knee surgery is planned for spring 2027. I want to be in Pune for at least the first month — that part is non-negotiable.', '2026-09-30');
+// worldview/control-and-change
+const wc1 = a('cc1', 'WC1', R.WC1.value, '2026-10-11');
+const wc3 = a('cc2', 'WC3', R.WC3.value, '2026-10-11');
+const cch = human('cc3', 'Honestly: I blame myself first and only notice the circumstances later.', '2026-10-11');
 
-// ── worldview/main ────────────────────────────────────────────
-const wm1 = e('wm1', 'h', 'Beliefs', 'auto', '2026-08-02');
-const wm2 = e('wm2', 'quote', 'A belief I changed: “I used to think hard work was enough. Watching friends put in the same effort and end up in very different places changed that.”', 'auto', '2026-08-02', { src: 'W4' });
-const wm3 = e('wm3', 'li', 'These are prompts for reflection, not a personality result.', 'human', '2026-03-18');
-const wm4 = e('wm4', 'li', 'Started [[worldview/personal-agency]] — want to finish it before the Zurich decision.', 'human', '2026-10-11');
+// moral/main
+const m1 = a('mm1', 'M1', R.M1.value, '2026-03-20');
+const m2 = a('mm2', 'M2', R.M2.value, '2026-03-20');
+const m3 = a('mm3', 'M3', R.M3.value, '2026-03-20');
+const m4 = a('mm4', 'M4', R.M4.value, '2026-03-20');
+const m5 = a('mm5', 'M5', R.M5.value, '2026-03-20');
+const mmh = human('mm6', 'Family is where my principles get tested most — see [[moral/family-duty]].', '2026-04-10');
 
-// ── worldview/personal-agency ─────────────────────────────────
-const pa1 = e('pa1', 'li', 'My own choices matter more than luck or circumstances in shaping my life.', 'auto', '2026-03-16', { src: 'W1' });
-const pa2 = e('pa2', 'li', 'Still sees own choices as the main driver, but less firmly than in March (W1: 5 → 4).', 'ai', '2026-08-03', { src: 'W1' });
-const pa3 = e('pa3', 'li', 'Honestly: I blame myself first and only notice the circumstances later.', 'human', '2026-10-11');
+// moral/rules-and-exceptions
+const mr1 = a('re1', 'MR1', R.MR1.value, '2026-03-25');
+const mr2 = a('re2', 'MR2', R.MR2.value, '2026-03-25');
+const mr3 = a('re3', 'MR3', R.MR3.value, '2026-03-25');
+const reh = human('re4', 'Volunteering at the screening clinic made “harms of omission” feel real, not abstract.', '2026-05-02');
 
-// ── worldview/sources-of-knowledge ────────────────────────────
-const sk1 = e('sk1', 'li', 'To decide what is true I rely most on experts, then experience.', 'auto', '2026-03-16', { src: 'W2' });
+// moral/family-duty
+const md1 = a('fd1', 'MD1', R.MD1.value, '2026-04-10');
+const md1n = line('fd2', 'li', `In my words: ${R.MD1.note}`, 'human', '2026-04-10', { src: 'MD1', answerNote: true });
+const md2 = a('fd3', 'MD2', R.MD2.value, '2026-04-10');
+const md3 = a('fd4', 'MD3', R.MD3.value, '2026-04-10');
+const fd5 = human('fd5', 'Aai’s knee surgery is planned for spring 2027. I want to be in Pune for at least the first month.', '2026-06-15');
+const fd5b = edited(fd5, 'Aai’s knee surgery is planned for spring 2027. I want to be in Pune for at least the first month — that part is non-negotiable.', '2026-09-30');
 
-// ── worldview/obligations-to-others ───────────────────────────
-const oo1 = e('oo1', 'li', 'My responsibility toward people outside my family or community: 7/10.', 'auto', '2026-03-16', { src: 'W3' });
-const oo2 = e('oo2', 'li', 'I mean this practically: time at the screening clinic, not just caring in principle.', 'human', '2026-05-03');
+// priorities/main
+const p1 = a('pm1', 'P1', R.P1.value, '2026-03-14');
+const p2a = a('pm2', 'P2', hv('P2'), '2026-03-14');
+const p2b = edited({ ...p2a }, QUESTION_BY_ID.P2.note(R.P2.value), '2026-09-12');
+const p3 = a('pm3', 'P3', R.P3.value, '2026-03-14');
+const p4 = a('pm4', 'P4', R.P4.value, '2026-03-14');
+const p5 = a('pm5', 'P5', R.P5.value, '2026-03-14');
+const pmh = human('pm6', 'Family still wins a real clash. Work comes first only for the next few years.', '2026-09-12');
+const pmai = ai('pm7', 'Work or studies moved ahead of family in September, while family still wins when things clash.', '2026-09-13', 'P2');
 
-// ── long-term-goals/main ──────────────────────────────────────
-const gm1 = e('gm1', 'h', 'Priorities', 'auto', '2026-05-18');
-const gm2 = e('gm2', 'li', 'Importance: financial success 4/10, close relationships 9/10, personal growth 8/10, recognition 3/10, community 3/10.', 'auto', '2026-05-18', { src: 'G3' });
-const gm3 = e('gm3', 'li', 'Attention over the next ten years: family & relationships, then career & work, then health.', 'auto', '2026-05-18', { src: 'G5' });
-const gm3b = edited(gm3, 'Attention over the next ten years: career & work, then family & relationships, then health.', '2026-09-12');
-const gm4 = e('gm4', 'li', 'Career has moved ahead of family in the ten-year ranking since May, while close relationships are still rated 9/10 in importance.', 'ai', '2026-09-13', { src: 'G5' });
-const gm5 = e('gm5', 'li', 'Priorities shifted after the Zurich offer (3-year PhD position, starts Sept 2027). Retake goals once I’ve talked to Aai and Baba.', 'human', '2026-10-02');
+// priorities/trade-offs
+const pt1 = a('to1', 'PT1', R.PT1.value, '2026-03-15');
+const pt2 = a('to2', 'PT2', R.PT2.value, '2026-03-15');
+const pt3 = a('to3', 'PT3', R.PT3.value, '2026-03-15');
 
-// ── long-term-goals/career ────────────────────────────────────
-const ca1 = e('ca1', 'h', 'Current project', 'auto', '2026-05-18');
-const ca2 = e('ca2', 'li', 'Project: Finishing my MSc thesis on early cancer detection from blood samples (importance 8/10, control 7/10)', 'auto', '2026-05-18', { src: 'G1' });
-const ca2b = edited(ca2, 'Project: Finishing my MSc thesis on early cancer detection from blood samples (importance 9/10, control 6/10)', '2026-09-12');
-const ca3 = e('ca3', 'quote', 'In ten years, if things go well: “Leading a small team that builds open diagnostic tools, with time left to teach — and close enough to home to visit often.”', 'auto', '2026-05-18', { src: 'G2' });
-const ca4 = e('ca4', 'li', 'About my project: enjoyment 8/10, stress 7/10, progress so far 5/10, personal fit 9/10.', 'auto', '2026-09-14', { src: 'PP1' });
-const ca5 = e('ca5', 'li', 'Time with family or close people this project asks me to give up: 7/10.', 'auto', '2026-09-14', { src: 'PP2' });
-const ca6 = e('ca6', 'li', 'The Zurich lab is the best fit for the detection work. Offer deadline: **15 Dec 2026**.', 'human', '2026-09-20');
+// identity/main and identity/tendencies
+const i1 = a('id1', 'I1', R.I1.value, '2026-04-02');
+const i2 = a('id2', 'I2', R.I2.value, '2026-04-02');
+const i3 = a('id3', 'I3', R.I3.value, '2026-04-02');
+const i4 = a('id4', 'I4', R.I4.value, '2026-04-02');
+const tendencies = ['IT1', 'IT2', 'IT3', 'IT4', 'IT5'].map((qid, i) => a(`tn${i + 1}`, qid, R[qid].value, '2026-04-05'));
 
-// ── long-term-goals/relationships ─────────────────────────────
-const rl1 = e('rl1', 'quote', 'In ten years, if things go well: “Leading a small team that builds open diagnostic tools, with time left to teach — and close enough to home to visit often.”', 'auto', '2026-05-18', { src: 'G2' });
-const rl2 = e('rl2', 'quote', 'Family and relationship life I want: “Close to my parents, a partner who wants a similar life, and friends I still see every month.”', 'auto', '2026-05-18', { src: 'G4' });
-const rl3 = e('rl3', 'li', 'I want to stay close enough to Aai and Baba that visiting isn’t a big event.', 'human', '2026-06-20');
+// goals/main
+const g1a = a('gm1', 'G1', hv('G1'), '2026-05-18');
+const g1b = edited({ ...g1a }, QUESTION_BY_ID.G1.note(R.G1.value), '2026-09-12');
+const g2 = a('gm2', 'G2', R.G2.value, '2026-05-18');
+const g3 = a('gm3', 'G3', R.G3.value, '2026-05-18');
+const g4 = a('gm4', 'G4', R.G4.value, '2026-05-18');
+const g6 = a('gm5', 'G6', R.G6.value, '2026-05-18');
+const gm2 = a('gm6', 'GM2', R.GM2.value, '2026-06-20');
+const g5 = a('gm7', 'G5', R.G5.value, '2026-09-12');
+const gmh = human('gm8', 'Priorities shifted after the Zurich offer (3-year PhD position, starts Sept 2027). Retake goals once I’ve talked to Aai and Baba.', '2026-10-02');
+
+// goals/work-and-study
+const gc = ['GC1', 'GC2', 'GC3', 'GC4', 'GC5'].map((qid, i) => a(`ws${i + 1}`, qid, R[qid].value, '2026-09-14'));
+const wsh1 = human('ws6', 'The Zurich lab is the best fit for the detection work. Offer deadline: **15 Dec 2026**.', '2026-09-20');
+const wsh2 = human('ws7', 'Talked to the Bengaluru team: the industry job stays open until March.', '2026-10-11');
+
+// goals/relationships-and-home
+const gh1 = a('rh1', 'GH1', R.GH1.value, '2026-06-20');
+const gh2 = a('rh2', 'GH2', R.GH2.value, '2026-06-20');
+const rhh = human('rh3', 'I want to stay close enough to Aai and Baba that visiting isn’t a big event.', '2026-06-20');
 
 type Versions = { history: FileVersion[]; current: FileVersion };
+const empty = (id: string, date: string): Versions => ({ history: [], current: v(id, date, 'Created', []) });
 
 const SAMPLE_VERSIONS: Record<string, Versions> = {
-  'ethics/main': {
+  'check-ins/log': {
     history: [
-      v('em-v1', '2026-03-20', 'Summary drafted', [em1, em2, em3]),
-      v('em-v2', '2026-04-10', 'Edited', [em1, em2, em3, em4]),
+      v('cl-v1', '2026-08-14', 'Answers in Monthly Check-in', [c1a, c2a, c3a, c4a]),
+      v('cl-v2', '2026-09-14', 'Answers in Monthly Check-in (retake)', [c1a, c2a, c3a, c4a, c1b, c2b, c3b, c4b]),
+      v('cl-v3', '2026-10-14', 'Answers in Monthly Check-in (retake)', [c1a, c2a, c3a, c4a, c1b, c2b, c3b, c4b, c1c, c2c, c3c, c4c]),
     ],
-    current: v('em-v3', '2026-09-20', 'Edited', [em1, em2, em3, em4, em5]),
-  },
-  'ethics/moral-principles': {
-    history: [
-      v('mp-v1', '2026-03-14', 'Answers in Ethics', [mp1, mp2, mp3, mp4, mp5]),
-      v('mp-v2', '2026-03-20', 'Answers in Moral Principles', [mp1, mp2, mp3, mp4, mp5, mp6, mp7, mp8, mp9]),
-    ],
-    current: v('mp-v3', '2026-05-02', 'Edited', [mp1, mp2, mp3, mp4, mp5, mp6, mp7, mp8, mp9, mp10]),
-  },
-  'ethics/family-obligations': {
-    history: [
-      v('fo-v1', '2026-03-14', 'Answers in Ethics', [fo1, fo2]),
-      v('fo-v2', '2026-04-10', 'Answers in Family Relationships', [fo1, fo2, fo3, fo4, fo5]),
-      v('fo-v3', '2026-04-11', 'Summary line added', [fo1, fo2, locked(fo3, '2026-04-11'), fo4, fo5, fo6]),
-      v('fo-v4', '2026-06-15', 'Edited', [fo1, fo2, locked(fo3, '2026-04-11'), fo4, fo5, fo6, fo7]),
-    ],
-    current: v('fo-v5', '2026-09-30', 'Edited', [fo1, fo2, locked(fo3, '2026-04-11'), fo4, fo5, fo6, fo7b]),
+    current: v('cl-v4', '2026-10-15', 'Edited', [c1a, c2a, c3a, c4a, c1b, c2b, c3b, c4b, c1c, c2c, c3c, c4c, clh]),
   },
   'worldview/main': {
     history: [
-      v('wm-v1', '2026-03-18', 'Edited', [wm3]),
-      v('wm-v2', '2026-08-02', 'Answers in Worldview / Beliefs (retake)', [wm1, wm2, wm3]),
+      v('wm-v1', '2026-03-16', 'Answers in Worldview & Beliefs', [w1a, w2, w3, w4a]),
+      v('wm-v2', '2026-03-18', 'Edited', [w1a, w2, w3, w4a, wmh]),
+      v('wm-v3', '2026-08-02', 'Answers in Worldview & Beliefs (retake)', [w1b, w2, w3, w4b, wmh, w5]),
     ],
-    current: v('wm-v3', '2026-10-11', 'Edited', [wm1, wm2, wm3, wm4]),
+    current: v('wm-v4', '2026-08-03', 'Summary line added', [w1b, w2, w3, w4b, wmh, w5, wmai]),
   },
-  'worldview/personal-agency': {
+  'worldview/control-and-change': {
+    history: [v('cc-v1', '2026-10-11', 'Answers in Control & Change', [wc1, wc3])],
+    current: v('cc-v2', '2026-10-11', 'Edited', [wc1, wc3, cch]),
+  },
+  'worldview/people-and-belief': empty('pb-v0', '2026-03-16'),
+  'moral/main': {
+    history: [v('mm-v1', '2026-03-20', 'Answers in Moral Principles', [m1, m2, m3, m4, m5])],
+    current: v('mm-v2', '2026-04-10', 'Edited', [m1, m2, m3, m4, m5, mmh]),
+  },
+  'moral/rules-and-exceptions': {
+    history: [v('re-v1', '2026-03-25', 'Answers in Rules & Exceptions', [mr1, mr2, mr3])],
+    current: v('re-v2', '2026-05-02', 'Edited', [mr1, mr2, mr3, reh]),
+  },
+  'moral/fairness-and-loyalty': empty('fl-v0', '2026-03-20'),
+  'moral/family-duty': {
     history: [
-      v('pa-v1', '2026-03-16', 'Answers in Worldview / Beliefs', [pa1]),
-      v('pa-v2', '2026-08-03', 'Summary line added', [pa1, pa2]),
+      v('fd-v1', '2026-04-10', 'Answers in Family Duty', [md1, md1n, md2, md3]),
+      v('fd-v2', '2026-06-15', 'Edited', [locked(md1, '2026-04-11'), md1n, md2, md3, fd5]),
     ],
-    current: v('pa-v3', '2026-10-11', 'Edited', [pa1, pa2, pa3]),
+    current: v('fd-v3', '2026-09-30', 'Edited', [locked(md1, '2026-04-11'), md1n, md2, md3, fd5b]),
   },
-  'worldview/sources-of-knowledge': {
-    history: [],
-    current: v('sk-v1', '2026-03-16', 'Answers in Worldview / Beliefs', [sk1]),
-  },
-  'worldview/obligations-to-others': {
-    history: [v('oo-v1', '2026-03-16', 'Answers in Worldview / Beliefs', [oo1])],
-    current: v('oo-v2', '2026-05-03', 'Edited', [oo1, oo2]),
-  },
-  'long-term-goals/main': {
+  'priorities/main': {
     history: [
-      v('gm-v1', '2026-05-18', 'Answers in Long-term Goals', [gm1, gm2, gm3]),
-      v('gm-v2', '2026-09-12', 'Answers in Long-term Goals (retake)', [gm1, gm2, gm3b]),
-      v('gm-v3', '2026-09-13', 'Summary line added', [gm1, gm2, gm3b, gm4]),
+      v('pm-v1', '2026-03-14', 'Answers in Personal Priorities', [p1, p2a, p3, p4, p5]),
+      v('pm-v2', '2026-09-12', 'Answers in Personal Priorities (retake)', [p1, p2b, p3, p4, p5, pmh]),
     ],
-    current: v('gm-v4', '2026-10-02', 'Edited', [gm1, locked(gm2, '2026-10-02'), gm3b, gm4, gm5]),
+    current: v('pm-v3', '2026-09-13', 'Summary line added', [locked(p1, '2026-09-13'), p2b, p3, p4, p5, pmh, pmai]),
   },
-  'long-term-goals/career': {
+  'priorities/trade-offs': { history: [], current: v('to-v1', '2026-03-15', 'Answers in What I’d Trade', [pt1, pt2, pt3]) },
+  'identity/main': { history: [], current: v('id-v1', '2026-04-02', 'Answers in Identity & Self-concept', [i1, i2, i3, i4]) },
+  'identity/tendencies': { history: [], current: v('tn-v1', '2026-04-05', 'Answers in How I Tend to Be', tendencies) },
+  'identity/becoming': empty('ib-v0', '2026-04-02'),
+  'goals/main': {
     history: [
-      v('ca-v1', '2026-05-18', 'Answers in Long-term Goals', [ca1, ca2, ca3]),
-      v('ca-v2', '2026-09-12', 'Answers in Long-term Goals (retake)', [ca1, ca2b, ca3]),
-      v('ca-v3', '2026-09-14', 'Answers in Personal Projects', [ca1, ca2b, ca3, ca4, ca5]),
+      v('gm-v1', '2026-05-18', 'Answers in Goals & Aspirations', [g1a, g2, g3, g4, g6]),
+      v('gm-v2', '2026-06-20', 'Answers in Other Areas', [g1a, g2, g3, g4, g6, gm2]),
+      v('gm-v3', '2026-09-12', 'Answers in Goals & Aspirations (retake)', [g1b, g2, g3, g4, g6, gm2, g5]),
     ],
-    current: v('ca-v4', '2026-09-20', 'Edited', [ca1, ca2b, ca3, ca4, ca5, ca6]),
+    current: v('gm-v4', '2026-10-02', 'Edited', [g1b, g2, g3, g4, g6, gm2, g5, gmh]),
   },
-  'long-term-goals/relationships': {
-    history: [v('rl-v1', '2026-05-18', 'Answers in Long-term Goals', [rl1, rl2])],
-    current: v('rl-v2', '2026-06-20', 'Edited', [rl1, rl2, rl3]),
+  'goals/work-and-study': {
+    history: [
+      v('ws-v1', '2026-09-14', 'Answers in Work & Study Path', gc),
+      v('ws-v2', '2026-09-20', 'Edited', [...gc, wsh1]),
+    ],
+    current: v('ws-v3', '2026-10-11', 'Edited', [...gc, wsh1, wsh2]),
+  },
+  'goals/relationships-and-home': {
+    history: [v('rh-v1', '2026-06-20', 'Answers in Relationships & Home', [gh1, gh2])],
+    current: v('rh-v2', '2026-06-20', 'Edited', [gh1, gh2, rhh]),
   },
 };
 
 export function sampleFiles(): Record<string, NoteFile> {
-  return Object.fromEntries(
-    FILE_DEFS.map((d) => [d.id, { ...d, ...structuredClone(SAMPLE_VERSIONS[d.id]) }]),
-  );
+  return Object.fromEntries(FILE_DEFS.map((d) => [d.id, { ...d, ...structuredClone(SAMPLE_VERSIONS[d.id]) }]));
 }
 
 export function emptyFiles(): Record<string, NoteFile> {
@@ -190,58 +316,33 @@ export function emptyFiles(): Record<string, NoteFile> {
   );
 }
 
-const r = (value: Response['value'], date: string, confidence?: number, history?: Response['history']): Response => ({
-  value,
-  answeredAt: at(date),
-  confidence,
-  history,
+const done = (start: string, ...submissions: string[]): NodeProgress => ({
+  startedAt: at(start),
+  completedAt: submissions.length ? at(submissions[submissions.length - 1]) : undefined,
+  submissions: submissions.map((d) => at(d)),
 });
 
-export const SAMPLE_RESPONSES: Record<string, Response> = {
-  E1: r(4, '2026-03-14'),
-  E2: r(3, '2026-03-14'),
-  E3: r('Probably yes, if the harm is real and the promise is small. I’d tell the person afterwards why I broke it.', '2026-03-14'),
-  E4: r(8, '2026-03-14', 3),
-  E5: r(['consequences', 'intentions', 'fairness', 'rule'], '2026-03-14'),
-  MP1: r(4, '2026-03-20', 4),
-  MP2: r(2, '2026-03-20'),
-  MP3: r(4, '2026-03-20'),
-  MP4: r(2, '2026-03-20'),
-  FR1: r(5, '2026-04-10'),
-  FR2: r(2, '2026-04-10'),
-  FR3: r('It doesn’t require giving up my career, but it does require being reachable and back for the big moments. The line is being absent for something that can’t be repeated.', '2026-04-10', 3),
-  W1: r(4, '2026-08-02', 3, [{ value: 5, confidence: 4, answeredAt: at('2026-03-16') }]),
-  W2: r(['experts', 'experience', 'tradition', 'intuition', 'texts'], '2026-03-16'),
-  W3: r(7, '2026-03-16'),
-  W4: r('I used to think hard work was enough. Watching friends put in the same effort and end up in very different places changed that.', '2026-08-02'),
-  PA1: r('internal', '2026-10-11'),
-  G1: r(
-    { text: 'Finishing my MSc thesis on early cancer detection from blood samples', ratings: { importance: 9, control: 6 } },
-    '2026-09-12',
-    undefined,
-    [{ value: { text: 'Finishing my MSc thesis on early cancer detection from blood samples', ratings: { importance: 8, control: 7 } }, answeredAt: at('2026-05-18') }],
-  ),
-  G2: r('Leading a small team that builds open diagnostic tools, with time left to teach — and close enough to home to visit often.', '2026-05-18'),
-  G3: r({ wealth: 4, relationships: 9, growth: 8, recognition: 3, community: 3 }, '2026-05-18'),
-  G4: r('Close to my parents, a partner who wants a similar life, and friends I still see every month.', '2026-05-18'),
-  G5: r(['career', 'family', 'health', 'learning', 'community'], '2026-09-12', undefined, [
-    { value: ['family', 'career', 'health', 'learning', 'community'], answeredAt: at('2026-05-18') },
-  ]),
-  PP1: r({ enjoyment: 8, stress: 7, progress: 5, fit: 9 }, '2026-09-14'),
-  PP2: r(7, '2026-09-14', 2),
-};
-
 export const SAMPLE_PROGRESS: Record<string, NodeProgress> = {
-  ethics: { startedAt: at('2026-03-14'), completedAt: at('2026-03-14'), submissions: [at('2026-03-14')] },
-  moral: { startedAt: at('2026-03-20'), completedAt: at('2026-03-20'), submissions: [at('2026-03-20')] },
-  family: { startedAt: at('2026-04-10'), completedAt: at('2026-04-10'), submissions: [at('2026-04-10')] },
-  worldview: { startedAt: at('2026-03-16'), completedAt: at('2026-08-02'), submissions: [at('2026-03-16'), at('2026-08-02')] },
-  agency: { startedAt: at('2026-10-11'), submissions: [] },
-  goals: { startedAt: at('2026-05-18'), completedAt: at('2026-09-12'), submissions: [at('2026-05-18'), at('2026-09-12')] },
-  projects: { startedAt: at('2026-09-14'), completedAt: at('2026-09-14'), submissions: [at('2026-09-14')] },
+  priorities: done('2026-03-14', '2026-03-14', '2026-09-12'),
+  trades: done('2026-03-15', '2026-03-15'),
+  worldview: done('2026-03-16', '2026-03-16', '2026-08-02'),
+  control: done('2026-10-11'),
+  moral: done('2026-03-20', '2026-03-20'),
+  rules: done('2026-03-25', '2026-03-25'),
+  family: done('2026-04-10', '2026-04-10'),
+  identity: done('2026-04-02', '2026-04-02'),
+  tendencies: done('2026-04-05', '2026-04-05'),
+  goals: done('2026-05-18', '2026-05-18', '2026-09-12'),
+  more: done('2026-06-20', '2026-06-20'),
+  home: done('2026-06-20', '2026-06-20'),
+  career: done('2026-09-14', '2026-09-14'),
+  checkin: done('2026-08-14', '2026-08-14', '2026-09-14', '2026-10-14'),
 };
 
 export const SAMPLE_ONBOARDED_AT = at('2026-03-12');
 
-/** Everything except the most recently opened node has been looked at. */
-export const SAMPLE_SEEN = ['root', 'ethics', 'worldview', 'goals', 'moral', 'family', 'agency', 'projects', 'aspirations'];
+/** Two areas opened by recent answers have not been looked at yet. */
+export const SAMPLE_SEEN = [
+  'root', 'priorities', 'trades', 'checkin', 'worldview', 'control', 'moral', 'rules', 'fairness', 'family',
+  'identity', 'tendencies', 'becoming', 'goals', 'career', 'home', 'more',
+];

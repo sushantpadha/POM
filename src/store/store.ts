@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type {
   AnswerValue,
+  Response,
   Entry,
   EntryKind,
   FileMode,
@@ -63,6 +64,10 @@ interface Actions {
   importData: (data: PortableData) => void;
   setResponse: (qid: string, value: AnswerValue, confidence?: number) => string[];
   setConfidence: (qid: string, confidence: number) => void;
+  /** "Add a note": the user's own one-line words under the generated line. */
+  setAnswerNote: (qid: string, note: string) => void;
+  /** "Still true" on a retake: keeps the value, refreshes the date. */
+  confirmResponse: (qid: string) => void;
   clearResponse: (qid: string) => void;
   submitQuestionnaire: (nodeId: string) => { proposalFileIds: string[] };
   addEntry: (fileId: string, afterId: string | null, text: string, kind?: EntryKind) => string;
@@ -145,6 +150,18 @@ const initialUi = (): Omit<Ui, 'toasts' | 'manualVersions'> => ({
   graphResetCounter: 0,
 });
 
+/**
+ * A changed (or reconfirmed) answer keeps the previous one in its history, but only once per
+ * questionnaire run: answers given since the last completion are just being edited.
+ */
+function historyWith(prev: Response, lastCompleted: string | undefined): Response['history'] {
+  const history = [...(prev.history ?? [])];
+  if (lastCompleted && prev.answeredAt <= lastCompleted) {
+    history.push({ value: prev.value, confidence: prev.confidence, answeredAt: prev.answeredAt });
+  }
+  return history.length ? history.slice(-5) : undefined;
+}
+
 /** Forget completion dates for nodes that no longer have any answers. */
 function clearEmptyProgress(s: Data, nodeIds: string[]) {
   for (const id of nodeIds) {
@@ -217,7 +234,7 @@ export const useStore = create<Store>()(
             s.tabs = s.tabs.filter((t) => t.kind !== 'onboarding');
             s.activeTab = 0;
             s.selectedNodeId = 'root';
-            pushToast(s, { text: `Welcome, ${s.userName}. Ethics, Worldview / Beliefs and Long-term Goals are now open.`, tone: 'unlock' });
+            pushToast(s, { text: `Welcome, ${s.userName}. Five areas are now open. Personal Priorities is a good place to start.`, tone: 'unlock' });
           }),
 
         setUserName: (name) =>
@@ -253,28 +270,42 @@ export const useStore = create<Store>()(
           const before = available(get());
           set((s) => {
             const prev = s.responses[qid];
-            const history = prev ? [...(prev.history ?? [])] : [];
-            if (prev && JSON.stringify(prev.value) !== JSON.stringify(value)) {
-              // Keep earlier answers from previous submissions only (not every keystroke).
-              const nodeId = MODEL.questions.find((q) => q.id === qid)!.nodeId;
-              const lastSubmit = s.progress[nodeId]?.completedAt;
-              if (lastSubmit && prev.answeredAt <= lastSubmit) {
-                history.push({ value: prev.value, confidence: prev.confidence, answeredAt: prev.answeredAt });
-              }
-            }
+            const q = MODEL.questions.find((x) => x.id === qid)!;
+            const lastCompleted = s.progress[q.nodeId]?.completedAt;
+            const changed = !prev || JSON.stringify(prev.value) !== JSON.stringify(value);
+            const newRun = !!prev && !!lastCompleted && prev.answeredAt <= lastCompleted;
             s.responses[qid] = {
               value,
               confidence: confidence ?? prev?.confidence,
               answeredAt: nowIso(),
-              history: history.length ? history.slice(-5) : undefined,
+              // A check-in note belongs to that month; other notes stay with the question.
+              note: q.log && newRun ? undefined : prev?.note,
+              history: prev && changed ? historyWith(prev, lastCompleted) : prev?.history,
             };
-            const nodeId = MODEL.questions.find((q) => q.id === qid)!.nodeId;
-            s.progress[nodeId] ??= { submissions: [] };
-            s.progress[nodeId].startedAt ??= nowIso();
+            s.progress[q.nodeId] ??= { submissions: [] };
+            s.progress[q.nodeId].startedAt ??= nowIso();
           });
           const after = available(get());
           return [...after].filter((id) => !before.has(id));
         },
+
+        setAnswerNote: (qid, note) =>
+          set((s) => {
+            const r = s.responses[qid];
+            if (!r) return;
+            const t = note.trim().slice(0, 300);
+            if (t) r.note = t;
+            else delete r.note;
+          }),
+
+        confirmResponse: (qid) =>
+          set((s) => {
+            const prev = s.responses[qid];
+            if (!prev) return;
+            const nodeId = MODEL.questions.find((q) => q.id === qid)!.nodeId;
+            prev.history = historyWith(prev, s.progress[nodeId]?.completedAt);
+            prev.answeredAt = nowIso();
+          }),
 
         setConfidence: (qid, confidence) =>
           set((s) => {
@@ -292,6 +323,7 @@ export const useStore = create<Store>()(
             const now = nowIso();
             s.progress[nodeId] ??= { submissions: [] };
             const p = s.progress[nodeId];
+            const runStart = p.completedAt;
             p.completedAt = now;
             p.submissions.push(now);
             const node = NODE_BY_ID[nodeId];
@@ -305,6 +337,7 @@ export const useStore = create<Store>()(
                 s.responses,
                 `Answers in ${node.name}${p.submissions.length > 1 ? ' (retake)' : ''}`,
                 now,
+                runStart,
               );
               if (proposal) {
                 s.files[fileId].proposal = proposal;
@@ -542,11 +575,11 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'pom-prototype-v1',
-      // v2 replaced the question set with the writeup's items; older saved state can't be mapped onto it.
-      // v3 was a short-lived journal layout with different UI state; its data fields are kept.
-      version: 4,
+      // v5 is the five-branch question set (PLAN_V2). Older saved data can't be mapped onto it
+      // and is discarded on load.
+      version: 5,
       migrate: (old, version) => {
-        if (version < 2) return {} as Partial<Store>;
+        if (version < 5) return {} as Partial<Store>;
         const o = old as Partial<Store>;
         return {
           profile: o.profile,

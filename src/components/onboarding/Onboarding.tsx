@@ -36,8 +36,8 @@ export function Onboarding() {
           <>
             <h1>Who am I?</h1>
             <p className="lead">
-              This is a place to put your ethics, your worldview and your long-term goals into words you can read, edit and
-              question.
+              A place to put five things into words you can read, edit and come back to: what you believe, what you think is
+              right, what matters most to you, who you are, and what you want.
             </p>
             <label className="name-field">
               <span>What should we call you?</span>
@@ -62,6 +62,7 @@ export function Onboarding() {
             <ul className="onb-points">
               <li>You answer short sets of questions, in any order. Every question can be skipped.</li>
               <li>Answers open further questions on a map. There is no score and no finish line.</li>
+              <li>A one-minute monthly check-in lets you see what changed and what stayed the same.</li>
               <li>Your answers become notes that you can edit, lock, or delete.</li>
               <li>
                 This is an exploratory prototype, not a validated test. It gives no diagnosis, score or personality type.
@@ -99,16 +100,16 @@ export function Onboarding() {
             <div className="onb-compare">
               <div className="onb-card">
                 <h3>Stable</h3>
-                <p>Lasting principles and beliefs, such as whether harm to others can be justified. Expected to change slowly.</p>
+                <p>Lasting principles and beliefs, such as whether most people can be trusted. Expected to change slowly.</p>
               </div>
               <div className="onb-card">
                 <h3>Flexible</h3>
-                <p>Current circumstances and priorities, such as a project you are working on. These are suggested for retakes.</p>
+                <p>Current circumstances and priorities, such as the main thing you are working toward. These are suggested for retakes.</p>
               </div>
             </div>
             <p className="muted">
               Each question also says where it comes from: <b>Adapted</b> means paraphrased from a published questionnaire;{' '}
-              <b>New</b> means our own.
+              <b>Informed</b> means our own wording on a published idea; <b>New</b> means our own.
             </p>
           </>
         )}

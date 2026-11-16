@@ -20,12 +20,131 @@ export function commitVersion(file: NoteFile, next: FileVersion): NoteFile {
   };
 }
 
+export interface ApplyResult {
+  changed: boolean;
+  /** Locked lines this answer wanted to change but kept. */
+  protectedIds: string[];
+}
+
+const lineKind = (q: Question): Entry['kind'] => (q.type === 'text' ? 'quote' : 'li');
+
+/** Dated prefix for check-in (log) lines. */
+export function logDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function newEntry(q: Question, text: string, now: string, extra: Partial<Entry> = {}): Entry {
+  return { id: uid('e'), kind: lineKind(q), text, createdAt: now, updatedAt: now, provenance: 'auto', sourceItemId: q.id, locked: false, ...extra };
+}
+
 /**
- * Build an automatic update from questionnaire responses. Each answered question
- * produces one "auto" line keyed by its source item id:
- *  - existing non-human line for that item → text refreshed (unless locked)
- *  - locked line → kept verbatim and reported in `protectedIds`
- *  - human-written lines are never touched
+ * Writes one answer into a list of note lines (mutates `entries`). One generated line per
+ * question, keyed by its source item id:
+ *  - existing generated line → text refreshed, unless locked (then kept and reported)
+ *  - lines the user wrote or edited are never touched; a new line goes after an edited one
+ *  - an empty note (or no answer) removes the unlocked generated line
+ *  - `log` questions append a dated line per check-in; within the same run (lines created
+ *    after `runStart`, the previous completion) the line is replaced instead
+ *  - the response's "Add a note" text is kept as a human line just under the answer
+ */
+export function applyAnswer(
+  entries: Entry[],
+  q: Question,
+  res: Response | undefined,
+  now = nowIso(),
+  runStart?: string,
+): ApplyResult {
+  const out: ApplyResult = { changed: false, protectedIds: [] };
+  const text = res ? q.note(res.value) : '';
+  const mine = (e: Entry) => e.sourceItemId === q.id && !e.answerNote;
+
+  let anchor: Entry | undefined;
+  if (q.log) {
+    const lines = entries.filter((e) => mine(e) && e.provenance === 'auto');
+    const latest = lines[lines.length - 1];
+    const inRun = latest && (!runStart || latest.createdAt > runStart) ? latest : undefined;
+    const dated = text ? `${logDate(now)} — ${text}` : '';
+    if (!dated) {
+      if (inRun && !inRun.locked) {
+        entries.splice(entries.indexOf(inRun), 1);
+        out.changed = true;
+      }
+    } else if (inRun) {
+      anchor = inRun;
+      if (inRun.text !== dated) {
+        if (inRun.locked) out.protectedIds.push(inRun.id);
+        else {
+          inRun.text = dated;
+          inRun.updatedAt = now;
+          out.changed = true;
+        }
+      }
+    } else {
+      anchor = newEntry(q, dated, now);
+      entries.push(anchor);
+      out.changed = true;
+    }
+  } else {
+    const existing = entries.find((e) => mine(e) && e.provenance !== 'human');
+    if (!text) {
+      if (existing && !existing.locked) {
+        entries.splice(entries.indexOf(existing), 1);
+        out.changed = true;
+      }
+    } else if (existing) {
+      anchor = existing;
+      if (existing.text !== text) {
+        if (existing.locked) out.protectedIds.push(existing.id);
+        else {
+          existing.text = text;
+          existing.kind = lineKind(q);
+          existing.provenance = 'auto';
+          existing.updatedAt = now;
+          out.changed = true;
+        }
+      }
+    } else {
+      // A line the user edited from this answer stays; the fresh line goes right after it.
+      const edited = [...entries].reverse().find((e) => mine(e) && e.provenance === 'human');
+      anchor = newEntry(q, text, now);
+      if (edited) entries.splice(entries.indexOf(edited) + 1, 0, anchor);
+      else entries.push(anchor);
+      out.changed = true;
+    }
+  }
+
+  // "Add a note": the user's own words, saved as a human line under the answer.
+  const noteText = res?.note?.trim();
+  const noteLine = [...entries].reverse().find((e) => e.answerNote && e.sourceItemId === q.id);
+  const wanted = noteText ? `In my words: ${noteText}` : '';
+  const noteInRun = noteLine && (!q.log || !runStart || noteLine.createdAt > runStart) ? noteLine : undefined;
+  if (wanted) {
+    if (noteInRun) {
+      if (noteInRun.text !== wanted) {
+        if (noteInRun.locked) out.protectedIds.push(noteInRun.id);
+        else {
+          noteInRun.text = wanted;
+          noteInRun.updatedAt = now;
+          out.changed = true;
+        }
+      }
+    } else {
+      const line: Entry = { ...newEntry(q, wanted, now), kind: 'li', provenance: 'human', answerNote: true };
+      const at = anchor ? entries.indexOf(anchor) : -1;
+      if (at >= 0) entries.splice(at + 1, 0, line);
+      else entries.push(line);
+      out.changed = true;
+    }
+  } else if (noteInRun && !noteInRun.locked && res) {
+    entries.splice(entries.indexOf(noteInRun), 1);
+    out.changed = true;
+  }
+  return out;
+}
+
+/**
+ * Build an automatic update from questionnaire responses as a proposal (draft).
+ * See `applyAnswer` for the line rules. Questions hidden by a gate are skipped.
  */
 export function generateUpdate(
   file: NoteFile,
@@ -33,6 +152,7 @@ export function generateUpdate(
   responses: Record<string, Response>,
   reason: string,
   now = nowIso(),
+  runStart?: string,
 ): Proposal | null {
   const entries = file.current.entries.map((e) => ({ ...e }));
   const protectedIds: string[] = [];
@@ -40,35 +160,10 @@ export function generateUpdate(
 
   for (const q of questions) {
     const res = responses[q.id];
-    if (!res) continue;
-    const text = q.note(res.value);
-    if (!text) continue;
-    const kind = q.type === 'text' ? 'quote' : 'li';
-    const existing = entries.find((e) => e.sourceItemId === q.id && e.provenance !== 'human');
-    if (existing) {
-      if (existing.text === text) continue;
-      if (existing.locked) {
-        protectedIds.push(existing.id);
-        continue;
-      }
-      existing.text = text;
-      existing.kind = kind;
-      existing.provenance = 'auto';
-      existing.updatedAt = now;
-      changed = true;
-    } else {
-      entries.push({
-        id: uid('e'),
-        kind,
-        text,
-        createdAt: now,
-        updatedAt: now,
-        provenance: 'auto',
-        sourceItemId: q.id,
-        locked: false,
-      });
-      changed = true;
-    }
+    if (!res || (q.showIf && !q.showIf(responses))) continue;
+    const r = applyAnswer(entries, q, res, now, runStart);
+    changed ||= r.changed;
+    protectedIds.push(...r.protectedIds);
   }
   if (!changed && protectedIds.length === 0) return null;
   return {
@@ -98,11 +193,14 @@ export function summarize(
 }
 
 /**
- * A branch's main file summarises its topic files: one short line per topic
- * file that has notes. Rule-based; no AI is involved.
+ * A branch's main file holds answers of its own and also summarises its topic files:
+ * its own generated lines are condensed first, then one short line per topic file
+ * that has notes. Rule-based; no AI is involved.
  */
 export function summarizeBranch(main: NoteFile, topics: NoteFile[], now = nowIso()): Proposal | null {
-  const lines = topics
+  const generated = main.current.entries.filter((e) => !e.locked && e.provenance !== 'human');
+  const own = fallbackSummary(generated);
+  const topicLines = topics
     .map((t) => {
       const body = t.current.entries.filter((e) => e.kind !== 'h');
       if (!body.length) return null;
@@ -110,7 +208,8 @@ export function summarizeBranch(main: NoteFile, topics: NoteFile[], now = nowIso
       return `${t.title}: ${first}${body.length > 1 ? ` (+${body.length - 1} more in [[${t.id}]])` : ''}`;
     })
     .filter((x): x is string => !!x);
-  if (!lines.length) return null;
+  const lines = [...own, ...topicLines];
+  if (!topicLines.length && generated.length < 2) return null;
   return buildSummary(main, lines, now);
 }
 

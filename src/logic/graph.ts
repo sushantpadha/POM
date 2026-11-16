@@ -101,7 +101,25 @@ export function buildGraphModel(nodes: GraphNode[], questions: Question[]): Grap
   return { nodes, questions, edges, order: sorted.order, depth, children, parents, questionsByNode };
 }
 
-/** A question counts as answered once a response exists (skipped questions are simply absent). */
+/** Gated questions (`showIf`) are hidden until their gate opens. */
+export function isVisible(q: Question, responses: Record<string, Response>): boolean {
+  return !q.showIf || q.showIf(responses);
+}
+
+/** The questions of a node that the runner shows right now. */
+export function visibleQuestions(model: GraphModel, nodeId: string, responses: Record<string, Response>): Question[] {
+  return model.questionsByNode[nodeId].filter((q) => isVisible(q, responses));
+}
+
+/** Tags one answer activates: `tagsFor(value)` when the question has it, else its static `selfTags`. */
+export function tagsOf(q: Question, value: Response['value']): string[] {
+  return q.tagsFor ? q.tagsFor(value) : q.selfTags;
+}
+
+/**
+ * A question counts as answered once a response exists (skipped questions are simply absent).
+ * Answers to questions that are currently hidden by a gate activate nothing.
+ */
 export function activeTags(
   model: GraphModel,
   responses: Record<string, Response>,
@@ -110,7 +128,8 @@ export function activeTags(
   const tags = new Set<string>();
   if (onboarded) tags.add(ONBOARDED_TAG);
   for (const q of model.questions) {
-    if (responses[q.id]) q.selfTags.forEach((t) => tags.add(t));
+    const r = responses[q.id];
+    if (r && isVisible(q, responses)) tagsOf(q, r.value).forEach((t) => tags.add(t));
   }
   return tags;
 }
@@ -148,12 +167,12 @@ export function nodeStatus(
   if (id === ROOT_ID) return onboarded ? 'answered' : 'available';
   if (!available.has(id)) return 'locked';
   if (progress[id]?.completedAt) return 'answered';
-  if (model.questionsByNode[id].some((q) => responses[q.id])) return 'in-progress';
+  if (visibleQuestions(model, id, responses).some((q) => responses[q.id])) return 'in-progress';
   return 'available';
 }
 
 export interface NodeMetrics {
-  /** Answered questions in this node only. */
+  /** Answered questions in this node only (shown questions; gated-off ones are not counted). */
   ownAnswered: number;
   ownTotal: number;
   /** Current progress: answered / currently available questions in the node's descendant subgraph (incl. itself). */
@@ -172,24 +191,24 @@ export function nodeMetrics(
   available: Set<string>,
   responses: Record<string, Response>,
 ): NodeMetrics {
-  const own = model.questionsByNode[id];
+  const own = visibleQuestions(model, id, responses);
   const desc = [...descendants(model, id)];
   const discovered = desc.filter((d) => available.has(d));
   const subgraph = [id, ...discovered];
-  const subQs = subgraph.flatMap((n) => model.questionsByNode[n]);
+  const subQs = subgraph.flatMap((n) => visibleQuestions(model, n, responses));
   return {
     ownAnswered: own.filter((q) => responses[q.id]).length,
     ownTotal: own.length,
     subAnswered: subQs.filter((q) => responses[q.id]).length,
     subAvailable: subQs.length,
     discoveredNodes: discovered.length,
-    discoveredQuestions: discovered.reduce((s, n) => s + model.questionsByNode[n].length, 0),
+    discoveredQuestions: discovered.reduce((s, n) => s + visibleQuestions(model, n, responses).length, 0),
     undiscoveredNodes: desc.length - discovered.length,
   };
 }
 
-/** The starting map (root + three branches) is not counted as exploration. */
-export const BASE_NODES = ['root', 'ethics', 'worldview', 'goals'];
+/** The starting map (root + five branches) is not counted as exploration. */
+export const BASE_NODES = ['root', 'worldview', 'moral', 'priorities', 'identity', 'goals'];
 
 export function globalExploration(model: GraphModel, available: Set<string>) {
   const extra = [...available].filter((id) => !BASE_NODES.includes(id));

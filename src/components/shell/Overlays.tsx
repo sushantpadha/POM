@@ -18,7 +18,7 @@ export function DemoChooser() {
         </div>
         <div className="dialog-body">
           <p>
-            A prototype for putting your ethics, worldview and long-term goals into words. It uses no AI service, and
+            A prototype for putting what you believe, what you think is right, what matters most to you, who you are and what you want into words. It uses no AI service, and
             everything stays in this browser. You can switch later from the menu at the top right.
           </p>
           <div className="chooser-grid">

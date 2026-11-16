@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import type { AnswerValue, Question } from '../../types';
 import { useStore } from '../../store/store';
 import { MODEL } from '../../store/model';
 import { NODE_BY_ID } from '../../data/nodes';
-import { formatAnswer } from '../../data/questions';
+import { formatAnswer, shortAnswer } from '../../data/questions';
+import { visibleQuestions } from '../../logic/graph';
+import { lastTime, thenAndNow } from '../../logic/thenNow';
+import { nowIso } from '../../logic/notes';
 import { useDerived } from '../../hooks/useDerived';
 import { QuestionInput } from './QuestionInput';
 
@@ -19,11 +22,17 @@ const confidenceLabel = (n: number) => CONFIDENCE.find(([, v]) => v === confiden
 
 export function Questionnaire({ nodeId }: { nodeId: string }) {
   const node = NODE_BY_ID[nodeId];
-  const questions = MODEL.questionsByNode[nodeId];
   const responses = useStore((s) => s.responses);
+  // Gated questions (settled / simple / not picked) are skipped.
+  const questions = useMemo(() => visibleQuestions(MODEL, nodeId, responses), [nodeId, responses]);
+  const progress = useStore((s) => s.progress[nodeId]);
+  // Fixed for this run: when it started, and when the node was last completed before it.
+  const [runStart] = useState(() => nowIso());
+  const [prevCompleted] = useState(() => progress?.completedAt);
   const focus = useStore((s) => s.focusQuestion);
   const setResponse = useStore((s) => s.setResponse);
   const setConfidence = useStore((s) => s.setConfidence);
+  const confirmResponse = useStore((s) => s.confirmResponse);
   const clearResponse = useStore((s) => s.clearResponse);
   const submit = useStore((s) => s.submitQuestionnaire);
   const openFile = useStore((s) => s.openFile);
@@ -64,6 +73,7 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   const reviewIndex = questions.length;
 
   if (done) {
+    const tn = thenAndNow(questions, responses, runStart);
     return (
       <div className="qn-main" style={{ height: '100%' }}>
         <div className="qn-inner">
@@ -71,6 +81,27 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
           <p className="muted">
             You answered {answered} of {questions.length}. Skipped questions are not recorded.
           </p>
+          {(tn.same.length > 0 || tn.changed.length > 0) && (
+            <section className="done-section" data-then-now>
+              <h4 className="section-label">Then and now</h4>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Same as last time: <b data-same>{tn.same.length}</b>
+                {tn.changed.length > 0 && <> · Changed: <b>{tn.changed.length}</b></>}
+              </p>
+              {tn.changed.length > 0 && (
+                <ul className="then-now">
+                  {tn.changed.map((c) => (
+                    <li key={c.q.id}>
+                      <span className="faint">{c.q.text.length > 70 ? `${c.q.text.slice(0, 67)}…` : c.q.text}</span>
+                      <div>
+                        <span className="old">{shortAnswer(c.q, c.before)}</span> → {shortAnswer(c.q, c.after)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
           {discovered.length > 0 && (
             <section className="done-section">
               <h4 className="section-label">Opened by your answers</h4>
@@ -161,8 +192,24 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                   Why we ask this
                 </button>
               )}
+              {lastTime(responses[q.id], prevCompleted) !== undefined && (
+                <div className="last-time">
+                  <span className="grow">
+                    Last time: <b style={{ color: 'var(--text)', fontWeight: 500 }}>{shortAnswer(q, responses[q.id].value)}</b>
+                  </span>
+                  <button
+                    className="btn sm"
+                    onClick={() => {
+                      confirmResponse(q.id);
+                      setIndex(index + 1);
+                    }}
+                  >
+                    Still true
+                  </button>
+                </div>
+              )}
               <div className="q-input">
-                <QuestionInput q={q} response={responses[q.id]} onAnswer={(v) => answer(q, v)} />
+                <QuestionInput q={q} response={responses[q.id]} onAnswer={(v) => answer(q, v)} onClear={() => clearResponse(q.id)} />
               </div>
 
               {q.askConfidence && responses[q.id] && (

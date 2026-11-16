@@ -7,9 +7,10 @@ interface Props {
   q: Question;
   response?: Response;
   onAnswer: (v: AnswerValue) => void;
+  onClear: () => void;
 }
 
-export function QuestionInput({ q, response, onAnswer }: Props) {
+export function QuestionInput({ q, response, onAnswer, onClear }: Props) {
   const v = response?.value;
   switch (q.type) {
     case 'likert':
@@ -31,16 +32,18 @@ export function QuestionInput({ q, response, onAnswer }: Props) {
           ))}
         </div>
       );
+    case 'multi':
+      return <Multi q={q} value={v as string[] | undefined} onAnswer={onAnswer} onClear={onClear} />;
     case 'rank':
       return <Rank q={q} value={v as string[] | undefined} onAnswer={onAnswer} />;
     case 'text':
-      return <TextAnswer key={q.id} value={(v as string) ?? ''} onAnswer={onAnswer} />;
+      return <TextAnswer key={q.id} value={(v as string) ?? ''} placeholder={q.placeholder} onAnswer={onAnswer} />;
     case 'slider':
       return <Slider key={q.id} value={v as number | undefined} ends={q.scale} onAnswer={onAnswer} />;
     case 'sliders':
       return <Sliders key={q.id} sliders={q.sliders!} value={v as Record<string, number> | undefined} onAnswer={onAnswer} />;
     case 'project':
-      return <Project key={q.id} sliders={q.sliders!} value={v as ProjectAnswer | undefined} onAnswer={onAnswer} />;
+      return <Project key={q.id} q={q} value={v as ProjectAnswer | undefined} onAnswer={onAnswer} />;
   }
 }
 
@@ -52,6 +55,45 @@ function Likert({ value, onAnswer }: { value?: number; onAnswer: (v: number) => 
           {LIKERT_LABELS[n - 1]}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Pick several. An `exclusive` option ("None of these") clears the rest; `max` caps the picks. */
+function Multi({ q, value, onAnswer, onClear }: { q: Question; value?: string[]; onAnswer: (v: string[]) => void; onClear: () => void }) {
+  const sel = value ?? [];
+  const full = q.max !== undefined && sel.filter((x) => x !== q.exclusive).length >= q.max;
+  const toggle = (opt: string) => {
+    let next: string[];
+    if (sel.includes(opt)) next = sel.filter((x) => x !== opt);
+    else if (opt === q.exclusive) next = [opt];
+    else next = [...sel.filter((x) => x !== q.exclusive), opt];
+    if (next.length) onAnswer(next);
+    else onClear();
+  };
+  return (
+    <div>
+      <div className="chips" role="group" aria-label="Pick options">
+        {q.options!.map((o) => {
+          const on = sel.includes(o.value);
+          return (
+            <button
+              key={o.value}
+              className={`chip-opt ${on ? 'sel' : ''} ${o.value === q.exclusive ? 'none' : ''}`}
+              aria-pressed={on}
+              disabled={!on && full && o.value !== q.exclusive}
+              onClick={() => toggle(o.value)}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+      {q.max !== undefined && (
+        <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>
+          {sel.filter((x) => x !== q.exclusive).length} of {q.max} picked
+        </div>
+      )}
     </div>
   );
 }
@@ -92,7 +134,7 @@ function Rank({ q, value, onAnswer }: { q: Question; value?: string[]; onAnswer:
   );
 }
 
-function TextAnswer({ value, onAnswer }: { value: string; onAnswer: (v: string) => void }) {
+function TextAnswer({ value, placeholder, onAnswer }: { value: string; placeholder?: string; onAnswer: (v: string) => void }) {
   const [draft, setDraft] = useState(value);
   const dirty = draft.trim() !== value.trim();
   const commit = () => {
@@ -100,7 +142,7 @@ function TextAnswer({ value, onAnswer }: { value: string; onAnswer: (v: string) 
   };
   return (
     <div>
-      <textarea className="input" rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} />
+      <textarea className="input" rows={3} value={draft} placeholder={placeholder} onChange={(e) => setDraft(e.target.value)} onBlur={commit} />
       <div className="row" style={{ marginTop: 6 }}>
         <span className="faint grow" style={{ fontSize: 12 }}>{value && !dirty ? 'Saved' : 'Saved when you leave the box'}</span>
         {dirty && draft.trim() && (
@@ -156,15 +198,16 @@ function Sliders({ sliders, value, onAnswer }: { sliders: Option[]; value?: Reco
   );
 }
 
-function Project({ sliders, value, onAnswer }: { sliders: Option[]; value?: ProjectAnswer; onAnswer: (v: ProjectAnswer) => void }) {
+function Project({ q, value, onAnswer }: { q: Question; value?: ProjectAnswer; onAnswer: (v: ProjectAnswer) => void }) {
   const [text, setText] = useState(value?.text ?? '');
   const [ratings, setRatings] = useState<Record<string, number>>(value?.ratings ?? {});
   const commit = (r = ratings) => {
     if (text.trim()) onAnswer({ text: text.trim(), ratings: r });
   };
+  const sliders = q.sliders ?? [];
   return (
     <div>
-      <textarea className="input" rows={3} value={text} placeholder="A sentence is enough" onChange={(e) => setText(e.target.value)} onBlur={() => commit()} />
+      <textarea className="input" rows={2} value={text} placeholder={q.placeholder ?? 'A sentence is enough'} onChange={(e) => setText(e.target.value)} onBlur={() => commit()} />
       <div className="slider-group" style={{ marginTop: 12 }}>
         {sliders.map((s) => (
           <RangeRow
@@ -178,8 +221,14 @@ function Project({ sliders, value, onAnswer }: { sliders: Option[]; value?: Proj
             }}
           />
         ))}
+        {q.scale && sliders.length === 1 && (
+          <div className="slider-ends">
+            <span>0 · {q.scale[0]}</span>
+            <span>{q.scale[1]} · 10</span>
+          </div>
+        )}
       </div>
-      {!text.trim() && <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>Describe the project first; ratings are saved with it.</div>}
+      {!text.trim() && <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>Write the first part; the rating is saved with it.</div>}
     </div>
   );
 }

@@ -91,7 +91,7 @@ export function RetakesPanel() {
     <FloatShell
       icon="★"
       title="Suggested retakes"
-      sub={`Based on flexible answers older than ${FLEXIBLE_AGE_DAYS} days, answers you marked unsure, and notes that say something changed.`}
+      sub={`The monthly check-in, events you named, flexible answers older than ${FLEXIBLE_AGE_DAYS} days, answers marked unsure, and notes that say something changed.`}
     >
       {retakes.length === 0 && <p className="muted" style={{ margin: 0 }}>Nothing to suggest right now.</p>}
       {retakes.map((s) => (

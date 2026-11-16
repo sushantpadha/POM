@@ -10,7 +10,7 @@ const data: PortableData = {
   progress: SAMPLE_PROGRESS,
   files: sampleFiles(),
   seen: ['root'],
-  dismissedTensions: ['harm-vs-outcomes'],
+  dismissedTensions: ['clear-self-vs-far'],
   tensionContext: {},
   deferred: {},
 };
@@ -30,10 +30,10 @@ describe('export / import', () => {
     const newer = { ...buildExport(data), version: 99 };
     expect(parseExport(JSON.stringify(newer))).toMatchObject({ ok: false });
     const bad = buildExport(data);
-    bad.data.responses['NOPE-1'] = bad.data.responses['E1'];
+    bad.data.responses['NOPE-1'] = bad.data.responses['P1'];
     expect(parseExport(JSON.stringify(bad))).toMatchObject({ ok: false, error: expect.stringContaining('NOPE-1') });
     const missing = buildExport(data) as unknown as { data: { files: Record<string, unknown> } };
-    delete missing.data.files['ethics/main'];
+    delete missing.data.files['moral/main'];
     expect(parseExport(JSON.stringify(missing))).toMatchObject({ ok: false });
   });
 });

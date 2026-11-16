@@ -17,7 +17,7 @@ import { BRANCH_COLOR } from '../branding';
 import { fileMenuItems } from './fileMenu';
 
 export function Sidebar() {
-  const [open, setOpen] = useState<Record<string, boolean>>({ root: true, ethics: true, worldview: true, 'long-term-goals': true });
+  const [open, setOpen] = useState<Record<string, boolean>>(() => ({ root: true, ...Object.fromEntries(DIRS.map((d) => [d.id, true])) }));
   const [menu, setMenu] = useState<{ fileId: string; x: number; y: number } | null>(null);
   const tabs = useStore((s) => s.tabs);
   const activeTab = useStore((s) => s.activeTab);

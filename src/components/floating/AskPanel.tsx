@@ -209,7 +209,7 @@ export function AskPanel() {
               className="input"
               rows={1}
               value={input}
-              placeholder="Ask about your ethics, worldview or goals…"
+              placeholder="Ask about your beliefs, priorities or goals…"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
