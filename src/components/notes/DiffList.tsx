@@ -10,7 +10,7 @@ const SIGN = { added: '+', removed: '−', changed: '~', same: '' };
 /** Read-only line, used by history and diff views. */
 export function StaticEntry({ entry }: { entry: Entry }) {
   return (
-    <div className={`entry ${entry.locked ? 'locked' : ''}`}>
+    <div className={`entry ${entry.provenance === 'ai' ? 'ai' : ''} ${entry.locked ? 'locked' : ''}`}>
       <div className="gutter">
         <ProvenanceIcon p={entry.provenance} />
         {entry.locked && (
@@ -23,6 +23,7 @@ export function StaticEntry({ entry }: { entry: Entry }) {
         <RichText text={entry.text} />
       </div>
       <div className="entry-side">
+        {entry.provenance === 'ai' && <span className="ai-label">AI</span>}
         {entry.sourceItemId && <span className="chip mono">{entry.sourceItemId}</span>}
       </div>
     </div>

@@ -13,7 +13,7 @@ export const BRANCH_COLOR: Record<Branch, string> = {
 
 /** Hex versions for SVG fills that need alpha blending. Keep in sync with styles.css. */
 export const BRANCH_HEX: Record<Branch, string> = {
-  root: '#cfcac1',
+  root: '#c4c7ce',
   worldview: '#5cb8ab',
   moral: '#e38d73',
   priorities: '#c9cf63',
@@ -21,7 +21,21 @@ export const BRANCH_HEX: Record<Branch, string> = {
   goals: '#6fa8e8',
 };
 
-export const ACCENT_HEX = '#a7b8a4';
+export const ACCENT_HEX = '#9d8cf5';
+/** Only for things that want attention: tension count, "new", "start here". */
+export const WARN_HEX = '#f5a524';
+/** Neutral greys for the SVG graph. Keep in sync with the tokens in styles.css. */
+export const GRAPH = {
+  bg: '#111317',
+  edge: '#4a505c',
+  edgeHover: '#a9adb7',
+  edgeLatent: '#2e333d',
+  arrow: '#5d6470',
+  locked: '#4f5561',
+  lockedText: '#7d828e',
+  selected: '#e8e9ec',
+  legend: '#a9adb7',
+};
 
 export const BRANCH_LABEL: Record<Branch, string> = {
   root: 'Start',
@@ -42,7 +56,7 @@ export const STATUS_LABEL: Record<NodeStatus, string> = {
 export const PROVENANCE: Record<Provenance, { label: string; Icon: typeof Hand }> = {
   human: { label: 'Written by you', Icon: Hand },
   auto: { label: 'Generated from one of your answers', Icon: Pencil },
-  ai: { label: 'Summary (AI in a full version; pre-written or rule-based here)', Icon: Bot },
+  ai: { label: 'Written by a summary (AI, or a rule when AI is off)', Icon: Bot },
 };
 
 export const SOURCE_LABEL: Record<SourceKind, string> = {

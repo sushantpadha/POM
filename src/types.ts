@@ -146,6 +146,7 @@ export type Tab =
   | { kind: 'questionnaire'; nodeId: string }
   | { kind: 'onboarding' };
 
-export type FileMode = 'notes' | 'history' | 'changes';
+/** History shows the version list with a diff against the current version (it replaced "Changes over time"). */
+export type FileMode = 'notes' | 'history';
 
 export type Profile = 'fresh' | 'sample';

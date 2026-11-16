@@ -9,7 +9,6 @@ import { EntryRow, parseSource } from './EntryRow';
 import { FileToolbar } from './FileToolbar';
 import { ProposalView } from './ProposalView';
 import { HistoryView } from './HistoryView';
-import { ChangesView } from './ChangesView';
 
 export function FileEditor({ fileId }: { fileId: string }) {
   const file = useStore((s) => s.files[fileId]);
@@ -49,8 +48,6 @@ export function FileEditor({ fileId }: { fileId: string }) {
       <div className="file-body">
         {mode === 'history' ? (
           <HistoryView fileId={fileId} />
-        ) : mode === 'changes' ? (
-          <ChangesView fileId={fileId} />
         ) : file.proposal ? (
           <ProposalView fileId={fileId} />
         ) : (
@@ -90,7 +87,7 @@ export function FileEditor({ fileId }: { fileId: string }) {
               </div>
             )}
             <div className="add-line">
-              <span className="faint" style={{ fontSize: 11, textAlign: 'right' }}>new</span>
+              <span className="faint" style={{ fontSize: 12, textAlign: 'right' }}>new</span>
               <input
                 value={draft}
                 placeholder="Add your own note"

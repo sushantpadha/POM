@@ -1,4 +1,4 @@
-import { Bot, Eraser, FileText, GitCompare, History, Network, RotateCcw, type LucideIcon } from 'lucide-react';
+import { Bot, Eraser, FileText, History, Network, RotateCcw, type LucideIcon } from 'lucide-react';
 import { useStore } from '../../store/store';
 
 export type MenuItem = { label: string; Icon: LucideIcon; run: () => void; danger?: boolean } | 'sep';
@@ -21,7 +21,6 @@ export function fileMenuItems(fileId: string, nodeIds: string[]): MenuItem[] {
   const s = useStore.getState();
   return [
     { label: 'Open', Icon: FileText, run: () => s.openFile(fileId, { mode: 'notes' }) },
-    { label: 'Changes over time', Icon: GitCompare, run: () => s.openFile(fileId, { mode: 'changes' }) },
     { label: 'Version history', Icon: History, run: () => s.openFile(fileId, { mode: 'history' }) },
     ...(nodeIds.length
       ? [{ label: 'Show on graph', Icon: Network, run: () => { s.setActiveTab(0); s.selectNode(nodeIds[0]); } }]

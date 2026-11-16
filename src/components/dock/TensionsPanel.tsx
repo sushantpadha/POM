@@ -9,7 +9,7 @@ import { nodesWithQuestionTags } from '../../logic/graph';
 import type { Evidence, Tension } from '../../logic/tensions';
 import { ProvenanceIcon } from '../branding';
 import { RichText } from '../notes/RichText';
-import { FloatShell } from './FloatingControls';
+import { DockShell } from './Dock';
 
 function EvidenceItem({ ev }: { ev: Evidence }) {
   const openFile = useStore((s) => s.openFile);
@@ -86,7 +86,7 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
             <div style={{ marginTop: 10 }}>
               <textarea className="input" rows={3} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="Why both can be true, or what has changed" />
               <div className="row" style={{ marginTop: 6 }}>
-                <span className="faint" style={{ fontSize: 11.5 }}>Add to</span>
+                <span className="faint" style={{ fontSize: 12 }}>Add to</span>
                 <select className="input" style={{ width: 'auto', padding: '3px 6px', fontSize: 12 }} value={target} onChange={(e) => setTarget(e.target.value)}>
                   {t.fileIds.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
@@ -134,7 +134,7 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
 export function TensionsPanel() {
   const { tensions, openTensions } = useMaintenance();
   const focusNode = useStore((s) => s.tensionFocus);
-  const setFloating = useStore((s) => s.setFloating);
+  const setDock = useStore((s) => s.setDock);
   const [showDismissed, setShowDismissed] = useState(false);
   const dismissedCount = tensions.length - openTensions.length;
 
@@ -146,16 +146,11 @@ export function TensionsPanel() {
   const list = (showDismissed ? tensions : openTensions).filter(relevant);
 
   return (
-    <FloatShell
-      icon="!"
-      title="Potential tensions"
-      sub="Found by fixed rules that compare your current notes across files. Not a judgement — often both can be true."
-
-    >
+    <DockShell sub="Found by fixed rules that compare your current notes across files. Not a judgement: often both can be true.">
       {node && (
         <div className="row">
           <span className="muted">Related to {node.name}</span>
-          <button className="btn sm ghost" onClick={() => setFloating('tensions', null)}>
+          <button className="btn sm ghost" onClick={() => setDock('tensions', null)}>
             Show all <ArrowRight size={12} />
           </button>
         </div>
@@ -171,6 +166,6 @@ export function TensionsPanel() {
           {showDismissed ? 'Hide' : 'Show'} {dismissedCount} dismissed
         </button>
       )}
-    </FloatShell>
+    </DockShell>
   );
 }

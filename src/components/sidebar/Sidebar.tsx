@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  ChevronRight,
-  FileText,
-  FolderClosed,
-  FolderOpen,
-  HardDrive,
-  MoreHorizontal,
-  Network,
-} from 'lucide-react';
+import { ChevronRight, HardDrive, MoreHorizontal, Network } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { MODEL, nodesForFile } from '../../store/model';
 import { DIRS, FILE_DEFS } from '../../data/files';
@@ -17,7 +9,7 @@ import { BRANCH_COLOR } from '../branding';
 import { fileMenuItems } from './fileMenu';
 
 export function Sidebar() {
-  const [open, setOpen] = useState<Record<string, boolean>>(() => ({ root: true, ...Object.fromEntries(DIRS.map((d) => [d.id, true])) }));
+  const [open, setOpen] = useState<Record<string, boolean>>(() => Object.fromEntries(DIRS.map((d) => [d.id, true])));
   const [menu, setMenu] = useState<{ fileId: string; x: number; y: number } | null>(null);
   const tabs = useStore((s) => s.tabs);
   const activeTab = useStore((s) => s.activeTab);
@@ -44,70 +36,57 @@ export function Sidebar() {
         <span className="section-label" style={{ margin: 0 }}>Notes</span>
       </div>
       <div className="sidebar-scroll">
-        <div className="tree-row" onClick={() => toggle('root')}>
-          <ChevronRight size={13} className={`chev ${open.root ? 'open' : ''}`} />
-          <HardDrive size={13} style={{ color: 'var(--text-faint)' }} />
-          <span className="name">personal-model/</span>
-        </div>
-        {open.root && (
-          <div className="tree-children">
-            {DIRS.map((d) => (
-              <div key={d.id}>
-                <div className="tree-row" onClick={() => toggle(d.id)}>
-                  <ChevronRight size={13} className={`chev ${open[d.id] ? 'open' : ''}`} />
-                  {open[d.id] ? (
-                    <FolderOpen size={13} style={{ color: BRANCH_COLOR[d.branch], opacity: 0.8 }} />
-                  ) : (
-                    <FolderClosed size={13} style={{ color: BRANCH_COLOR[d.branch], opacity: 0.8 }} />
-                  )}
-                  <span className="name">{d.id}/</span>
-                </div>
-                {open[d.id] && (
-                  <div className="tree-children">
-                    {FILE_DEFS.filter((f) => f.dir === d.id && visible(f.id)).map((f) => {
-                      const file = files[f.id];
-                      const isMenuOpen = menu?.fileId === f.id;
-                      return (
-                        <div
-                          key={f.id}
-                          className={`tree-row ${activeFile === f.id ? 'active' : ''} ${isMenuOpen ? 'menu-open' : ''}`}
-                          onClick={() => openFile(f.id)}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            setMenu({ fileId: f.id, x: e.clientX, y: e.clientY });
+        {DIRS.map((d) => (
+          <div key={d.id} className="tree-dir" data-dir={d.id}>
+            <div className="tree-row dir" onClick={() => toggle(d.id)}>
+              <ChevronRight size={14} className={`chev ${open[d.id] ? 'open' : ''}`} />
+              <span className="dir-dot" style={{ background: BRANCH_COLOR[d.branch] }} />
+              <span className="name">{d.title}</span>
+            </div>
+            {open[d.id] && (
+              <div className="tree-children">
+                {FILE_DEFS.filter((f) => f.dir === d.id && visible(f.id)).map((f) => {
+                  const file = files[f.id];
+                  const isMenuOpen = menu?.fileId === f.id;
+                  const empty = file.current.entries.length === 0;
+                  return (
+                    <div
+                      key={f.id}
+                      className={`tree-row file ${activeFile === f.id ? 'active' : ''} ${isMenuOpen ? 'menu-open' : ''} ${empty ? 'is-empty' : ''}`}
+                      onClick={() => openFile(f.id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setMenu({ fileId: f.id, x: e.clientX, y: e.clientY });
+                      }}
+                      title={empty ? `${f.id} (no notes yet)` : f.id}
+                      data-file={f.id}
+                    >
+                      <span className="name">{f.name === 'main' ? 'Main' : f.title}</span>
+                      {file.proposal && <span className="badge-dot" title="Draft to review" />}
+                      <span className="row-actions">
+                        <button
+                          className="icon-btn"
+                          style={{ width: 22, height: 22 }}
+                          aria-label={`Actions for ${f.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setMenu({ fileId: f.id, x: r.left, y: r.bottom + 4 });
                           }}
-                          title={f.title}
-                          data-file={f.id}
                         >
-                          <FileText size={13} style={{ color: 'var(--text-faint)', marginLeft: 13 }} />
-                          <span className="name" style={{ fontWeight: f.name === 'main' ? 500 : 400 }}>{f.name}</span>
-                          {file.proposal && <span className="badge-dot" title="Draft changes to review" />}
-                          <span className="row-actions">
-                            <button
-                              className="icon-btn"
-                              style={{ width: 20, height: 20 }}
-                              aria-label={`Actions for ${f.id}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                setMenu({ fileId: f.id, x: r.left, y: r.bottom + 4 });
-                              }}
-                            >
-                              <MoreHorizontal size={13} />
-                            </button>
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                          <MoreHorizontal size={14} />
+                        </button>
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            )}
           </div>
-        )}
+        ))}
 
         {hiddenCount > 0 && (
-          <div className="faint" style={{ fontSize: 11.5, padding: '10px 8px 0' }}>
+          <div className="faint" style={{ fontSize: 12, padding: '10px 8px 0' }}>
             {hiddenCount} more topic file{hiddenCount > 1 ? 's' : ''} appear as you open deeper questions.
           </div>
         )}

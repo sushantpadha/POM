@@ -7,9 +7,7 @@ import { GraphView } from './components/graph/GraphView';
 import { Onboarding } from './components/onboarding/Onboarding';
 import { Questionnaire } from './components/questionnaire/Questionnaire';
 import { FileEditor } from './components/notes/FileEditor';
-import { NodePanel } from './components/panels/NodePanel';
-import { FilePanel } from './components/panels/FilePanel';
-import { FloatingControls } from './components/floating/FloatingControls';
+import { Dock } from './components/dock/Dock';
 import { EraseDialog, ResetDialog } from './components/dialogs/TopicDialogs';
 import { ImportDialog } from './components/dialogs/ImportDialog';
 
@@ -17,42 +15,38 @@ export default function App() {
   const profile = useStore((s) => s.profile);
   const tabs = useStore((s) => s.tabs);
   const activeTab = useStore((s) => s.activeTab);
-  const selectedNodeId = useStore((s) => s.selectedNodeId);
   const dialog = useStore((s) => s.dialog);
   const tab = tabs[activeTab] ?? tabs[0];
 
   let content;
-  let panel = null;
   switch (tab.kind) {
     case 'graph':
       content = <GraphView />;
-      if (selectedNodeId) panel = <NodePanel key={selectedNodeId} nodeId={selectedNodeId} />;
       break;
     case 'onboarding':
       content = <Onboarding />;
       break;
     case 'questionnaire':
-      // While answering, only the question is shown: no node panel beside it.
       content = <Questionnaire key={tab.nodeId} nodeId={tab.nodeId} />;
       break;
     case 'file':
       content = <FileEditor key={tab.fileId} fileId={tab.fileId} />;
-      panel = <FilePanel fileId={tab.fileId} />;
       break;
   }
+  // Focus mode: while answering, the tree and the dock are hidden; the question has the screen.
+  const focus = tab.kind === 'questionnaire';
 
   return (
-    <div className={`app ${panel ? 'with-panel' : ''}`}>
+    <div className={`app ${focus ? 'focus' : ''}`}>
       <TopBar />
       <div className="body">
-        <Sidebar />
+        {!focus && <Sidebar />}
         <main className="workspace">
           <TabBar />
           <div className="workspace-content">{content}</div>
         </main>
-        {panel}
+        {!focus && <Dock />}
       </div>
-      <FloatingControls />
       {dialog?.kind === 'about' && <AboutDialog />}
       {dialog?.kind === 'reset' && <ResetDialog fileId={dialog.fileId} />}
       {dialog?.kind === 'erase' && <EraseDialog fileId={dialog.fileId} />}

@@ -8,9 +8,11 @@ interface Props {
   response?: Response;
   onAnswer: (v: AnswerValue) => void;
   onClear: () => void;
+  /** Enter in a one-line text answer: save and go on. */
+  onEnter?: () => void;
 }
 
-export function QuestionInput({ q, response, onAnswer, onClear }: Props) {
+export function QuestionInput({ q, response, onAnswer, onClear, onEnter }: Props) {
   const v = response?.value;
   switch (q.type) {
     case 'likert':
@@ -18,7 +20,7 @@ export function QuestionInput({ q, response, onAnswer, onClear }: Props) {
     case 'choice':
       return (
         <div className="choices" role="radiogroup">
-          {q.options!.map((o) => (
+          {q.options!.map((o, i) => (
             <button
               key={o.value}
               role="radio"
@@ -27,7 +29,8 @@ export function QuestionInput({ q, response, onAnswer, onClear }: Props) {
               onClick={() => onAnswer(o.value)}
             >
               <span className="radio" />
-              {o.label}
+              <span className="grow">{o.label}</span>
+              <span className="key">{i + 1}</span>
             </button>
           ))}
         </div>
@@ -37,7 +40,7 @@ export function QuestionInput({ q, response, onAnswer, onClear }: Props) {
     case 'rank':
       return <Rank q={q} value={v as string[] | undefined} onAnswer={onAnswer} />;
     case 'text':
-      return <TextAnswer key={q.id} value={(v as string) ?? ''} placeholder={q.placeholder} onAnswer={onAnswer} />;
+      return <TextAnswer key={q.id} value={(v as string) ?? ''} placeholder={q.placeholder} onAnswer={onAnswer} onEnter={onEnter} />;
     case 'slider':
       return <Slider key={q.id} value={v as number | undefined} ends={q.scale} onAnswer={onAnswer} />;
     case 'sliders':
@@ -52,6 +55,7 @@ function Likert({ value, onAnswer }: { value?: number; onAnswer: (v: number) => 
     <div className="likert" role="radiogroup">
       {[1, 2, 3, 4, 5].map((n) => (
         <button key={n} role="radio" aria-checked={value === n} className={value === n ? 'sel' : ''} onClick={() => onAnswer(n)}>
+          <span className="key">{n}</span>
           {LIKERT_LABELS[n - 1]}
         </button>
       ))}
@@ -134,7 +138,7 @@ function Rank({ q, value, onAnswer }: { q: Question; value?: string[]; onAnswer:
   );
 }
 
-function TextAnswer({ value, placeholder, onAnswer }: { value: string; placeholder?: string; onAnswer: (v: string) => void }) {
+function TextAnswer({ value, placeholder, onAnswer, onEnter }: { value: string; placeholder?: string; onAnswer: (v: string) => void; onEnter?: () => void }) {
   const [draft, setDraft] = useState(value);
   const dirty = draft.trim() !== value.trim();
   const commit = () => {
@@ -142,9 +146,25 @@ function TextAnswer({ value, placeholder, onAnswer }: { value: string; placehold
   };
   return (
     <div>
-      <textarea className="input" rows={3} value={draft} placeholder={placeholder} onChange={(e) => setDraft(e.target.value)} onBlur={commit} />
+      <textarea
+        className="input"
+        rows={2}
+        value={draft}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            commit();
+            if (draft.trim()) onEnter?.();
+          }
+        }}
+      />
       <div className="row" style={{ marginTop: 6 }}>
-        <span className="faint grow" style={{ fontSize: 12 }}>{value && !dirty ? 'Saved' : 'Saved when you leave the box'}</span>
+        <span className="faint grow" style={{ fontSize: 12 }}>
+          {value && !dirty ? 'Saved' : 'Saved when you leave the box or press Enter'} · Shift+Enter for a new line
+        </span>
         {dirty && draft.trim() && (
           <button className="btn sm" onClick={commit}>
             Save

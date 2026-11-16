@@ -2,13 +2,14 @@ import { ClipboardList, FileText, Network, Sparkles, X } from 'lucide-react';
 import type { Tab } from '../../types';
 import { useStore } from '../../store/store';
 import { NODE_BY_ID } from '../../data/nodes';
+import { FILE_DEF_BY_ID } from '../../data/files';
 
 function tabLabel(t: Tab): { label: string; Icon: typeof Network } {
   switch (t.kind) {
     case 'graph':
       return { label: 'Graph', Icon: Network };
     case 'file':
-      return { label: t.fileId, Icon: FileText };
+      return { label: FILE_DEF_BY_ID[t.fileId]?.title ?? t.fileId, Icon: FileText };
     case 'questionnaire':
       return { label: NODE_BY_ID[t.nodeId].name, Icon: ClipboardList };
     case 'onboarding':

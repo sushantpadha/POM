@@ -5,7 +5,6 @@ import { NODE_BY_ID } from '../../data/nodes';
 import { useDerived } from '../../hooks/useDerived';
 import { fmtDateTime } from '../../logic/format';
 import { PROVENANCE, ProvenanceIcon, StatusDot } from '../branding';
-import { FileActions } from './FileActions';
 
 export function FilePanel({ fileId }: { fileId: string }) {
   const file = useStore((s) => s.files[fileId]);
@@ -19,16 +18,14 @@ export function FilePanel({ fileId }: { fileId: string }) {
   const q = entry?.sourceItemId ? MODEL.questions.find((x) => x.id === entry.sourceItemId) : undefined;
 
   return (
-    <aside className="context-panel" aria-label="File details">
+    <>
       <div className="cp-head">
-        <h2 className="cp-title mono" style={{ fontSize: 13.5, marginTop: 0 }}>{fileId}</h2>
-        <div className="faint" style={{ fontSize: 12 }}>
-          {file.history.length} earlier version{file.history.length === 1 ? '' : 's'} kept (up to 5)
-        </div>
+        <h2 className="cp-title" style={{ marginTop: 0 }}>{file.title}</h2>
+        <div className="faint mono" style={{ fontSize: 12 }}>{fileId}</div>
       </div>
       <div className="cp-scroll">
         <section>
-          <h4 className="section-label">Line</h4>
+          <h4 className="section-label">Selected line</h4>
           {entry ? (
             <>
               <dl className="kv">
@@ -51,7 +48,7 @@ export function FilePanel({ fileId }: { fileId: string }) {
                   )}
                 </dd>
                 <dt>ID</dt>
-                <dd className="mono faint" style={{ fontSize: 11 }}>{entry.id}</dd>
+                <dd className="mono faint" style={{ fontSize: 12 }}>{entry.id}</dd>
               </dl>
               {q && <p className="metric-note" style={{ marginTop: 8 }}>“{q.text}”</p>}
               <button className="btn sm" style={{ marginTop: 10 }} onClick={() => toggleLock(fileId, entry.id)}>
@@ -60,7 +57,7 @@ export function FilePanel({ fileId }: { fileId: string }) {
               <p className="metric-note" style={{ marginTop: 6 }}>Locked lines are never changed by updates, summaries or resets.</p>
             </>
           ) : (
-            <p className="faint" style={{ margin: 0, fontSize: 12.5 }}>Select a line to see where it came from.</p>
+            <p className="faint" style={{ margin: 0 }}>Select a line to see where it came from.</p>
           )}
         </section>
 
@@ -82,9 +79,7 @@ export function FilePanel({ fileId }: { fileId: string }) {
             ))}
           </div>
         </section>
-
-        <FileActions fileId={fileId} />
       </div>
-    </aside>
+    </>
   );
 }

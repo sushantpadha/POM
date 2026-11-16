@@ -6,7 +6,7 @@ import { ASK_SPECS, LOW_CONFIDENCE_QUESTION } from '../../data/ask';
 import { answer, type AskResult } from '../../logic/ask';
 import { ProvenanceIcon } from '../branding';
 import { RichText } from '../notes/RichText';
-import { FloatShell } from './FloatingControls';
+import { DockShell } from './Dock';
 
 
 const STEPS = [
@@ -78,9 +78,9 @@ function TurnView({ turn }: { turn: Turn }) {
             </span>
             <div>
               {label}
-              {i === 0 && stage > 0 && <div className="faint" style={{ fontSize: 11.5 }}>{r.dimensions.join(' · ')}</div>}
+              {i === 0 && stage > 0 && <div className="faint" style={{ fontSize: 12 }}>{r.dimensions.join(' · ')}</div>}
               {i === 1 && stage > 1 && <FileChips ids={r.mainFiles} />}
-              {i === 2 && stage > 2 && (r.topicFiles.length ? <FileChips ids={r.topicFiles} /> : <div className="faint" style={{ fontSize: 11.5 }}>none needed</div>)}
+              {i === 2 && stage > 2 && (r.topicFiles.length ? <FileChips ids={r.topicFiles} /> : <div className="faint" style={{ fontSize: 12 }}>none needed</div>)}
             </div>
           </div>
         ))}
@@ -133,7 +133,7 @@ function TurnView({ turn }: { turn: Turn }) {
                     <span>
                       <span className="row" style={{ gap: 6 }}>
                         <ProvenanceIcon p={c.entry.provenance} size={11} />
-                        <span className="mono" style={{ fontSize: 11 }}>{c.fileId}</span>
+                        <span className="mono" style={{ fontSize: 12 }}>{c.fileId}</span>
                         {q && (
                           <button
                             className="chip mono link"
@@ -148,7 +148,7 @@ function TurnView({ turn }: { turn: Turn }) {
                           </button>
                         )}
                       </span>
-                      <span className="faint" style={{ fontSize: 11.5 }}>
+                      <span className="faint" style={{ fontSize: 12 }}>
                         {c.entry.text.replace(/\*|\[\[|\]\]/g, '').slice(0, 90)}
                         {c.entry.text.length > 90 ? '…' : ''}
                       </span>
@@ -198,10 +198,8 @@ export function AskPanel() {
   const busy = !!last && last.stage < 5;
 
   return (
-    <FloatShell
-      icon="?"
-      title="Ask your model"
-      sub="No AI in this prototype: answers are pre-written for the sample, or quote your notes"
+    <DockShell
+      sub="Ask about your own notes. Answers quote them, with your words kept apart from any reading."
       foot={
         <>
           <div className="ask-input">
@@ -209,7 +207,7 @@ export function AskPanel() {
               className="input"
               rows={1}
               value={input}
-              placeholder="Ask about your beliefs, priorities or goals…"
+              placeholder="Ask about your notes…"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -256,6 +254,6 @@ export function AskPanel() {
         </div>
       )}
       <div ref={bodyEnd} />
-    </FloatShell>
+    </DockShell>
   );
 }

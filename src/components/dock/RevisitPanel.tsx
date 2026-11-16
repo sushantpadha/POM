@@ -5,7 +5,7 @@ import { useMaintenance } from '../../hooks/useMaintenance';
 import { FLEXIBLE_AGE_DAYS, type RetakeSuggestion } from '../../logic/retakes';
 import { fmtDate } from '../../logic/format';
 import { Menu } from '../sidebar/Sidebar';
-import { FloatShell } from './FloatingControls';
+import { DockShell } from './Dock';
 
 function SuggestionCard({ s }: { s: RetakeSuggestion }) {
   const openQuestionnaire = useStore((st) => st.openQuestionnaire);
@@ -20,7 +20,7 @@ function SuggestionCard({ s }: { s: RetakeSuggestion }) {
     <div className="card" data-retake={s.nodeId}>
       <div className="row" style={{ marginBottom: 4 }}>
         <h4 className="grow" style={{ margin: 0 }}>{node.name}</h4>
-        <span className="faint" style={{ fontSize: 11.5 }}>saved {fmtDate(s.lastCompleted)}</span>
+        <span className="faint" style={{ fontSize: 12 }}>saved {fmtDate(s.lastCompleted)}</span>
       </div>
       <ul className="reasons">
         {s.reasons.map((r) => (
@@ -34,7 +34,7 @@ function SuggestionCard({ s }: { s: RetakeSuggestion }) {
         ))}
       </ul>
       <div className="card-actions">
-        <button className="btn sm primary" onClick={() => openQuestionnaire(s.nodeId)}>
+        <button className="btn sm" onClick={() => openQuestionnaire(s.nodeId)}>
           Retake
         </button>
         <button
@@ -82,17 +82,13 @@ function SuggestionCard({ s }: { s: RetakeSuggestion }) {
   );
 }
 
-export function RetakesPanel() {
+export function RevisitPanel() {
   const { retakes, deferredRetakes } = useMaintenance();
   const deferred = useStore((s) => s.deferred);
   const undefer = useStore((s) => s.undeferRetake);
 
   return (
-    <FloatShell
-      icon="★"
-      title="Suggested retakes"
-      sub={`The monthly check-in, events you named, flexible answers older than ${FLEXIBLE_AGE_DAYS} days, answers marked unsure, and notes that say something changed.`}
-    >
+    <DockShell sub={`What to look at again: the monthly check-in, events you named, flexible answers older than ${FLEXIBLE_AGE_DAYS} days, answers marked unsure, and notes that say something changed.`}>
       {retakes.length === 0 && <p className="muted" style={{ margin: 0 }}>Nothing to suggest right now.</p>}
       {retakes.map((s) => (
         <SuggestionCard key={s.nodeId} s={s} />
@@ -111,6 +107,6 @@ export function RetakesPanel() {
           ))}
         </div>
       )}
-    </FloatShell>
+    </DockShell>
   );
 }

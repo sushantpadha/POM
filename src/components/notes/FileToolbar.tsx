@@ -15,7 +15,6 @@ export function FileToolbar({ fileId }: { fileId: string }) {
   const modes: { id: FileMode; label: string }[] = [
     { id: 'notes', label: file.proposal ? 'Notes · draft to review' : 'Notes' },
     { id: 'history', label: `History (${file.history.length})` },
-    { id: 'changes', label: 'Changes over time' },
   ];
 
   return (
@@ -49,7 +48,9 @@ export function FileToolbar({ fileId }: { fileId: string }) {
       {menu && (
         <Menu x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
           {fileMenuItems(fileId, nodesForFile(fileId))
-            .filter((i) => i === 'sep' || i.label !== 'Open')
+            // Open and Summarise are already on this toolbar.
+            .filter((i) => i === 'sep' || (i.label !== 'Open' && i.label !== 'Summarise' && i.label !== 'Version history'))
+            .filter((i, idx, arr) => i !== 'sep' || (idx > 0 && arr[idx - 1] !== 'sep'))
             .map((item, i) =>
               item === 'sep' ? (
                 <div key={i} className="menu-sep" />

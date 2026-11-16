@@ -5,6 +5,8 @@ import {
   forceManyBody,
   forceRadial,
   forceSimulation,
+  forceX,
+  forceY,
   type Simulation,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
@@ -12,10 +14,10 @@ import {
 import { Maximize2, Minus, Plus, RotateCcw } from 'lucide-react';
 import { useStore } from '../../store/store';
 import { MODEL } from '../../store/model';
-import { NODE_BY_ID } from '../../data/nodes';
+import { NODE_BY_ID, START_HERE } from '../../data/nodes';
 import { useDerived } from '../../hooks/useDerived';
 import { globalExploration, visibleQuestions } from '../../logic/graph';
-import { ACCENT_HEX, BRANCH_HEX, STATUS_LABEL } from '../branding';
+import { BRANCH_HEX, GRAPH, STATUS_LABEL, WARN_HEX } from '../branding';
 
 interface SimNode extends SimulationNodeDatum {
   id: string;
@@ -30,12 +32,53 @@ function radiusFor(id: string): number {
   return MODEL.depth[id] === 1 ? 15 : 11;
 }
 
-/** Stable starting angle per node, so the map comes out the same on every visit. */
-function seedAngle(id: string): number {
-  let h = 0;
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return (h / 360) * Math.PI * 2;
+// ── Sector layout ────────────────────────────────────────────
+// Each branch gets a 72° wedge around the root so the five branches stop crossing. The order
+// puts branches that share a node next to each other: Family Duty (Moral + Goals) and When
+// Priorities Clash (Priorities + Moral + Goals) sit between their parents' wedges.
+const WEDGE_ORDER = ['worldview', 'priorities', 'moral', 'goals', 'identity'];
+const DEG = Math.PI / 180;
+const WEDGE = 72 * DEG;
+
+function circularMean(angles: number[]): number {
+  const x = angles.reduce((s, a) => s + Math.cos(a), 0);
+  const y = angles.reduce((s, a) => s + Math.sin(a), 0);
+  return Math.atan2(y, x);
 }
+
+/** Target angle per node, computed once from the graph. */
+const ANGLE: Record<string, number> = (() => {
+  const out: Record<string, number> = { root: 0 };
+  WEDGE_ORDER.forEach((id, i) => (out[id] = -90 * DEG + i * WEDGE));
+  // Siblings that belong to one branch only spread out inside its wedge.
+  const single = MODEL.order.filter(
+    (id) => !(id in out) && MODEL.parents[id].length > 0 && MODEL.parents[id].every((p) => NODE_BY_ID[p].branch === NODE_BY_ID[id].branch),
+  );
+  for (const id of MODEL.order) {
+    if (id in out) continue;
+    const parents = MODEL.parents[id];
+    const node = NODE_BY_ID[id];
+    if (node.branch === 'root') {
+      // The monthly check-in sits beside Personal Priorities.
+      out[id] = out[parents[0]] - 26 * DEG;
+    } else if (single.includes(id)) {
+      const sibs = single.filter((x) => NODE_BY_ID[x].branch === node.branch && MODEL.depth[x] === MODEL.depth[id]);
+      const i = sibs.indexOf(id);
+      out[id] = out[node.branch] + (i - (sibs.length - 1) / 2) * 24 * DEG;
+    } else {
+      out[id] = circularMean(parents.map((p) => out[p]));
+    }
+  }
+  return out;
+})();
+
+function target(id: string): { x: number; y: number } {
+  const r = MODEL.depth[id] * RING;
+  return { x: Math.cos(ANGLE[id]) * r, y: Math.sin(ANGLE[id]) * r };
+}
+
+/** Below this zoom, only branch labels stay visible. */
+const LABEL_ZOOM = 0.75;
 
 function arcPath(r: number, frac: number): string {
   const f = Math.min(Math.max(frac, 0.001), 0.999);
@@ -121,7 +164,11 @@ export function GraphView() {
           .distance(120)
           .strength(0.25),
       )
-      .force('radial', forceRadial<SimNode>((d) => MODEL.depth[d.id] * RING, 0, 0).strength(0.9))
+      .force('radial', forceRadial<SimNode>((d) => MODEL.depth[d.id] * RING, 0, 0).strength(0.6))
+      // Sector force: pull each node toward its branch's wedge.
+      // Branch nodes hold their wedge firmly; deeper nodes can drift toward their parents.
+      .force('sx', forceX<SimNode>((d) => target(d.id).x).strength((d) => (MODEL.depth[d.id] === 1 ? 0.6 : 0.14)))
+      .force('sy', forceY<SimNode>((d) => target(d.id).y).strength((d) => (MODEL.depth[d.id] === 1 ? 0.6 : 0.14)))
       .force('collide', forceCollide<SimNode>((d) => d.r + 26))
       .alphaDecay(0.035)
       .on('end', () => {
@@ -156,12 +203,13 @@ export function GraphView() {
       if (map.has(id)) continue;
       // New nodes spawn next to an already placed parent.
       const parent = MODEL.parents[id].map((p) => map.get(p)).find(Boolean);
-      const angle = seedAngle(id);
+      const t = target(id);
       const n: SimNode = {
         id,
         r: radiusFor(id),
-        x: parent ? (parent.x ?? 0) + Math.cos(angle) * 30 : Math.cos(angle) * MODEL.depth[id] * RING,
-        y: parent ? (parent.y ?? 0) + Math.sin(angle) * 30 : Math.sin(angle) * MODEL.depth[id] * RING,
+        // A first layout starts from the wedge targets; later nodes spawn next to a parent.
+        x: parent && !initial ? (parent.x ?? 0) + Math.cos(ANGLE[id]) * 30 : t.x,
+        y: parent && !initial ? (parent.y ?? 0) + Math.sin(ANGLE[id]) * 30 : t.y,
       };
       if (id === 'root') {
         n.fx = 0;
@@ -333,7 +381,7 @@ export function GraphView() {
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 1 L 9 5 L 0 9 z" fill={k === 'active' ? '#5f5c57' : '#363431'} />
+              <path d="M 0 1 L 9 5 L 0 9 z" fill={k === 'active' ? GRAPH.arrow : GRAPH.edgeLatent} />
             </marker>
           ))}
         </defs>
@@ -360,7 +408,7 @@ export function GraphView() {
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={active ? (hl ? '#9d988f' : '#4a4743') : '#302e2b'}
+                stroke={active ? (hl ? GRAPH.edgeHover : GRAPH.edge) : GRAPH.edgeLatent}
                 strokeWidth={hl ? 1.6 : 1.1}
                 strokeDasharray={active ? undefined : '3 4'}
                 markerEnd={`url(#arrow-${active ? 'active' : 'latent'})`}
@@ -381,11 +429,13 @@ export function GraphView() {
             const fresh = isNew(id);
             const newBelow = st !== 'locked' && hasNewDescendants(id);
             const invite = id === 'root' && !onboarded;
+            const startHere = id === START_HERE && onboarded && st !== 'locked' && !MODEL.questionsByNode[id].some((q) => responses[q.id]);
+            const isBranch = MODEL.depth[id] <= 1;
             return (
               <g
                 key={id}
                 transform={`translate(${n.x},${n.y})`}
-                className={`g-node ${st} ${selected ? 'selected' : ''} ${dim ? 'g-dim' : ''}`}
+                className={`g-node ${st} ${selected ? 'selected' : ''} ${dim ? 'g-dim' : ''} ${!isBranch && view.k < LABEL_ZOOM && hover !== id && !selected ? 'far' : ''}`}
                 onPointerDown={(e) => onNodeDown(e, id)}
                 onPointerEnter={() => setHover(id)}
                 onPointerLeave={() => setHover((h) => (h === id ? null : h))}
@@ -396,7 +446,7 @@ export function GraphView() {
                 data-node={id}
               >
                 <g className={spawned.has(id) ? 'spawn' : undefined}>
-                  {(fresh || invite) && (
+                  {(fresh || invite || startHere) && (
                     <circle
                       className="pulse"
                       stroke={color}
@@ -404,11 +454,11 @@ export function GraphView() {
                       r={r + 2}
                     />
                   )}
-                  <circle className="halo" r={r + 5} stroke={selected ? '#dcd8d0' : color} />
+                  <circle className="halo" r={r + 5} stroke={selected ? GRAPH.selected : color} />
                   {st === 'locked' ? (
                     <>
-                      <circle r={r} fill="#171717" stroke="#45423e" strokeWidth={1.2} strokeDasharray="2.5 2.5" />
-                      <text textAnchor="middle" dy="0.35em" fontSize={r} fill="#5a5753" style={{ pointerEvents: 'none' }}>
+                      <circle r={r} fill={GRAPH.bg} stroke={GRAPH.locked} strokeWidth={1.2} strokeDasharray="2.5 2.5" />
+                      <text textAnchor="middle" dy="0.35em" fontSize={r} fill={GRAPH.lockedText} style={{ pointerEvents: 'none' }}>
                         ?
                       </text>
                     </>
@@ -420,27 +470,32 @@ export function GraphView() {
                       <path d={arcPath(r, frac)} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
                     </>
                   ) : (
-                    <circle r={r} fill="#171717" stroke={color} strokeWidth={1.6} />
+                    <circle r={r} fill={GRAPH.bg} stroke={color} strokeWidth={1.6} />
                   )}
                   {id === 'root' && (
-                    <text textAnchor="middle" dy="0.35em" fontSize={13} fontWeight={600} fill={st === 'answered' ? '#1a1a1a' : color} style={{ pointerEvents: 'none' }}>
+                    <text textAnchor="middle" dy="0.35em" fontSize={13} fontWeight={600} fill={st === 'answered' ? GRAPH.bg : color} style={{ pointerEvents: 'none' }}>
                       ?
                     </text>
                   )}
                   {newBelow && (
                     <g transform={`translate(${r * 0.78},${-r * 0.78})`}>
-                      <circle r={3.5} fill={ACCENT_HEX} stroke="#151515" strokeWidth={1.5} />
+                      <circle r={3.5} fill={WARN_HEX} stroke={GRAPH.bg} strokeWidth={1.5} />
                     </g>
                   )}
                 </g>
                 <text className="label" textAnchor="middle" y={r + 16}>
                   {st === 'locked' ? '' : node.name}
                   {fresh && (
-                    <tspan fill={ACCENT_HEX} fontSize={10} dx={5}>
+                    <tspan className="new-mark" fill={WARN_HEX} dx={5}>
                       new
                     </tspan>
                   )}
                 </text>
+                {startHere && (
+                  <text className="label start-here" textAnchor="middle" y={r + 31} fill={WARN_HEX}>
+                    Start here
+                  </text>
+                )}
               </g>
             );
           })}
@@ -504,24 +559,24 @@ export function GraphView() {
       <div className="graph-overlay bl">
         <div className="glass legend">
           <span className="legend-item">
-            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#45423e" strokeDasharray="2 2" /></svg>
-            Not opened
+            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="none" stroke={GRAPH.locked} strokeDasharray="2 2" /></svg>
+            not opened
           </span>
           <span className="legend-item">
-            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#9d988f" strokeWidth="1.4" /></svg>
-            Open
+            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="none" stroke={GRAPH.legend} strokeWidth="1.4" /></svg>
+            open
           </span>
           <span className="legend-item">
             <svg width="12" height="12">
-              <circle cx="6" cy="6" r="4.5" fill="none" stroke="rgba(157,152,143,0.35)" strokeWidth="1.4" />
-              <path d={arcPath(4.5, 0.4)} transform="translate(6,6)" fill="none" stroke="#9d988f" strokeWidth="1.8" />
+              <path d={arcPath(4.5, 0.4)} transform="translate(6,6)" fill="none" stroke={GRAPH.legend} strokeWidth="1.8" />
             </svg>
-            In progress
+            in progress
           </span>
           <span className="legend-item">
-            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#9d988f" /></svg>
-            Answered
+            <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill={GRAPH.legend} /></svg>
+            answered
           </span>
+          <span className="legend-item faint">Colour = branch · drag, scroll to zoom, double-click to answer</span>
         </div>
       </div>
     </div>

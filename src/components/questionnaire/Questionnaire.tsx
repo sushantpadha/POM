@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react';
 import type { AnswerValue, Question } from '../../types';
 import { useStore } from '../../store/store';
 import { MODEL } from '../../store/model';
@@ -19,6 +19,29 @@ const CONFIDENCE: [string, number][] = [
 ];
 const confidenceLevel = (n?: number) => (n === undefined ? undefined : n <= 2 ? 1 : n >= 4 ? 5 : 3);
 
+/** "Add a note": one line in the user's own words, saved on Enter or when the box loses focus. */
+function NoteBox({ initial, onDone }: { initial: string; onDone: (text: string) => void }) {
+  const [text, setText] = useState(initial);
+  return (
+    <div className="note-box">
+      <input
+        className="input"
+        autoFocus
+        maxLength={300}
+        value={text}
+        placeholder="In your own words, e.g. “it depends on whether my parents need me”"
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => onDone(text)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onDone(text);
+          if (e.key === 'Escape') onDone(initial);
+        }}
+        aria-label="Add a note"
+      />
+    </div>
+  );
+}
+
 export function Questionnaire({ nodeId }: { nodeId: string }) {
   const node = NODE_BY_ID[nodeId];
   const responses = useStore((s) => s.responses);
@@ -32,6 +55,7 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   const setResponse = useStore((s) => s.setResponse);
   const setConfidence = useStore((s) => s.setConfidence);
   const confirmResponse = useStore((s) => s.confirmResponse);
+  const setAnswerNote = useStore((s) => s.setAnswerNote);
   const clearResponse = useStore((s) => s.clearResponse);
   const finish = useStore((s) => s.finishQuestionnaire);
   const openFile = useStore((s) => s.openFile);
@@ -45,6 +69,14 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   /** Notes files this run wrote to, in the order they were first touched. */
   const [touched, setTouched] = useState<string[]>([]);
   const finished = useRef(false);
+  /** "Add a note" box open for this question id. */
+  const [noting, setNoting] = useState<string | null>(null);
+  const advanceTimer = useRef<number | undefined>(undefined);
+  const go = (i: number) => {
+    window.clearTimeout(advanceTimer.current);
+    setIndex(i);
+  };
+  useEffect(() => () => window.clearTimeout(advanceTimer.current), []);
 
   useEffect(() => {
     if (focus?.nodeId === nodeId) {
@@ -75,7 +107,35 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
       setDiscovered((d) => [...new Set([...d, ...opened])]);
       setLastUnlock({ qid: q.id, ids: opened });
     }
+    // A scale or pick-one answer moves on by itself, unless there is more to do on this question.
+    if ((q.type === 'likert' || q.type === 'choice') && !q.askConfidence && noting !== q.id) {
+      window.clearTimeout(advanceTimer.current);
+      const at = index;
+      advanceTimer.current = window.setTimeout(() => setIndex((i) => (i === at ? i + 1 : i)), 450);
+    }
   };
+
+  // Keyboard: 1–5 on a scale (1–n on a pick-one), Enter for next.
+  const current = questions[index];
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('textarea, input, select, [contenteditable]') || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!current) return;
+      const n = Number(e.key);
+      if (Number.isInteger(n) && n >= 1) {
+        if (current.type === 'likert' && n <= 5) answer(current, n);
+        else if (current.type === 'choice' && n <= (current.options?.length ?? 0)) answer(current, current.options![n - 1].value);
+        else return;
+        e.preventDefault();
+      } else if (e.key === 'Enter' && !t.closest('button, a') && responses[current.id]) {
+        e.preventDefault();
+        go(index + 1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const toGraph = (id: string) => {
     setActiveTab(0);
@@ -83,21 +143,29 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   };
 
   const steps = (
-    <nav className="qn-steps" aria-label="Questions">
-      {questions.map((qq, i) => (
-        <button
-          key={qq.id}
-          className={`${i === index ? 'active' : ''} ${responses[qq.id] ? 'done' : ''}`}
-          onClick={() => setIndex(i)}
-          aria-label={`Question ${i + 1}${responses[qq.id] ? ', answered' : ''}`}
-        >
-          {i + 1}
+    <div className="qn-top">
+      <nav className="qn-steps" aria-label="Questions">
+        {questions.map((qq, i) => (
+          <button
+            key={qq.id}
+            className={`${i === index ? 'active' : ''} ${responses[qq.id] ? 'done' : ''}`}
+            onClick={() => go(i)}
+            aria-label={`Question ${i + 1}${responses[qq.id] ? ', answered' : ''}`}
+          >
+            {i + 1}
+          </button>
+        ))}
+        <button className={atDone ? 'active' : ''} onClick={() => go(doneIndex)} aria-label="Done">
+          <Check size={12} />
         </button>
-      ))}
-      <button className={atDone ? 'active' : ''} onClick={() => setIndex(doneIndex)} aria-label="Done">
-        <Check size={12} />
+      </nav>
+      <span className="qn-count">{atDone ? 'Done' : `${index + 1} of ${questions.length}`}</span>
+      <span className="grow" />
+      <span className="qn-node">{node.name}</span>
+      <button className="btn ghost sm" onClick={() => toGraph(nodeId)} title="Leave the questions; your answers are saved">
+        <X size={13} /> Exit
       </button>
-    </nav>
+    </div>
   );
 
   if (atDone) {
@@ -162,7 +230,7 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                 <button className="btn primary" onClick={() => toGraph(nodeId)}>
                   Back to graph
                 </button>
-                <button className="btn ghost" onClick={() => setIndex(0)}>
+                <button className="btn ghost" onClick={() => go(0)}>
                   Change answers
                 </button>
               </div>
@@ -208,7 +276,7 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                   className="btn sm"
                   onClick={() => {
                     touch(confirmResponse(q.id));
-                    setIndex(index + 1);
+                    go(index + 1);
                   }}
                 >
                   Still true
@@ -216,8 +284,36 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
               </div>
             )}
             <div className="q-input">
-              <QuestionInput q={q} response={responses[q.id]} onAnswer={(v) => answer(q, v)} onClear={() => touch(clearResponse(q.id))} />
+              <QuestionInput
+                q={q}
+                response={responses[q.id]}
+                onAnswer={(v) => answer(q, v)}
+                onClear={() => touch(clearResponse(q.id))}
+                onEnter={() => go(index + 1)}
+              />
             </div>
+
+            {responses[q.id] &&
+              (noting === q.id ? (
+                <NoteBox
+                  initial={responses[q.id].note ?? ''}
+                  onDone={(text) => {
+                    touch(setAnswerNote(q.id, text));
+                    setNoting(null);
+                  }}
+                />
+              ) : responses[q.id].note ? (
+                <div className="answer-note">
+                  <span className="faint">Your note:</span> {responses[q.id].note}{' '}
+                  <button className="why-link" onClick={() => setNoting(q.id)}>
+                    Edit
+                  </button>
+                </div>
+              ) : (
+                <button className="why-link add-note" onClick={() => setNoting(q.id)}>
+                  Add a note
+                </button>
+              ))}
 
             {q.askConfidence && responses[q.id] && (
               <div className="confidence">
@@ -232,21 +328,9 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
               </div>
             )}
 
-            {lastUnlock?.qid === q.id && (
-              <div className="unlock-callout">
-                Opened{' '}
-                {lastUnlock.ids.map((id, i) => (
-                  <span key={id}>
-                    {i > 0 && ', '}
-                    <b>{NODE_BY_ID[id].name}</b>
-                  </span>
-                ))}
-                .
-              </div>
-            )}
 
             <div className="qn-foot">
-              <button className="btn ghost" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+              <button className="btn ghost" disabled={index === 0} onClick={() => go(index - 1)}>
                 <ArrowLeft size={13} /> Back
               </button>
               <span className="grow" />
@@ -255,14 +339,29 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                   Clear
                 </button>
               )}
-              <button className="btn" onClick={() => setIndex(index + 1)}>
+              <button className="btn" onClick={() => go(index + 1)}>
                 Skip
               </button>
-              <button className="btn primary" disabled={!responses[q.id]} onClick={() => setIndex(index + 1)}>
+              <button className="btn primary" disabled={!responses[q.id]} onClick={() => go(index + 1)}>
                 Next <ArrowRight size={13} />
               </button>
             </div>
           </div>
+          {lastUnlock && (
+            <div className="unlock-callout" role="status">
+              New area opened:{' '}
+              {lastUnlock.ids.map((id, i) => (
+                <span key={id}>
+                  {i > 0 && ', '}
+                  <b>{NODE_BY_ID[id].name}</b>
+                </span>
+              ))}
+              . It is on the map when you are done.
+            </div>
+          )}
+          <p className="qn-keys faint">
+            {q.type === 'likert' ? 'Keys 1–5 answer · ' : q.type === 'choice' ? `Keys 1–${q.options!.length} answer · ` : ''}Enter for next
+          </p>
         </div>
       </div>
     </div>

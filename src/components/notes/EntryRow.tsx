@@ -71,7 +71,7 @@ export function EntryRow({ fileId, entry, selected, flash, onSelect }: Props) {
   return (
     <div
       ref={ref}
-      className={`entry ${entry.locked ? 'locked' : ''} ${selected ? 'selected' : ''} ${flash ? 'flash' : ''}`}
+      className={`entry ${entry.provenance === 'ai' ? 'ai' : ''} ${entry.locked ? 'locked' : ''} ${selected ? 'selected' : ''} ${flash ? 'flash' : ''}`}
       data-entry={entry.id}
     >
       <div className="gutter">
@@ -119,6 +119,7 @@ export function EntryRow({ fileId, entry, selected, flash, onSelect }: Props) {
       )}
 
       <div className="entry-side">
+        {entry.provenance === 'ai' && <span className="ai-label" title={PROVENANCE.ai.label}>AI</span>}
         <span className="stamp" title={`Created ${fmtDateTime(entry.createdAt)} · Updated ${fmtDateTime(entry.updatedAt)}`}>
           {fmtDate(entry.updatedAt)}
         </span>

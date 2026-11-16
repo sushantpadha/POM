@@ -25,7 +25,8 @@ import { applyAnswer, commitVersion, nowIso, regenerate, summarize, summarizeBra
 import { MODEL, nodesForFile, questionsForFile } from './model';
 import { buildExport, type ExportFile, type PortableData } from '../logic/transfer';
 
-export type FloatingPanel = 'ask' | 'retakes' | 'tensions' | null;
+/** Tabs of the right-hand dock. */
+export type DockTab = 'details' | 'ask' | 'tensions' | 'revisit';
 export type Dialog = { kind: 'reset' | 'erase'; fileId: string } | { kind: 'about' } | { kind: 'import' } | null;
 
 export interface Toast {
@@ -47,7 +48,8 @@ interface Ui {
   highlight: { fileId: string; entryId: string; at: number } | null;
   selectedEntry: { fileId: string; entryId: string } | null;
   focusQuestion: { nodeId: string; questionId: string } | null;
-  floating: FloatingPanel;
+  dock: DockTab;
+  /** When set, the Tensions tab shows only tensions related to this node. */
   tensionFocus: string | null;
   dialog: Dialog;
   toasts: Toast[];
@@ -97,7 +99,7 @@ interface Actions {
   openQuestionnaire: (nodeId: string, questionId?: string) => void;
   setFileMode: (fileId: string, mode: FileMode) => void;
   setInspectVersion: (fileId: string, versionId: string | undefined) => void;
-  setFloating: (p: FloatingPanel, tensionFocus?: string | null) => void;
+  setDock: (tab: DockTab, tensionFocus?: string | null) => void;
   setDialog: (d: Dialog) => void;
   toast: (t: Omit<Toast, 'id'>) => void;
   dismissToast: (id: string) => void;
@@ -146,7 +148,7 @@ const initialUi = (): Omit<Ui, 'toasts' | 'manualVersions'> => ({
   highlight: null,
   selectedEntry: null,
   focusQuestion: null,
-  floating: null,
+  dock: 'details',
   tensionFocus: null,
   dialog: null,
   graphResetCounter: 0,
@@ -545,6 +547,7 @@ export const useStore = create<Store>()(
         selectNode: (id) =>
           set((s) => {
             s.selectedNodeId = id;
+            if (id) s.dock = 'details';
             if (id && !s.seen.includes(id)) s.seen.push(id);
           }),
 
@@ -597,9 +600,9 @@ export const useStore = create<Store>()(
 
         setFileMode: (fileId, mode) => set((s) => void (s.fileModes[fileId] = mode)),
         setInspectVersion: (fileId, versionId) => set((s) => void (s.inspectVersion[fileId] = versionId)),
-        setFloating: (p, tensionFocus = null) =>
+        setDock: (tab, tensionFocus = null) =>
           set((s) => {
-            s.floating = p;
+            s.dock = tab;
             s.tensionFocus = tensionFocus;
           }),
         setDialog: (d) => set((s) => void (s.dialog = d)),
