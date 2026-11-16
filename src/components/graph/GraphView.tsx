@@ -77,8 +77,10 @@ function target(id: string): { x: number; y: number } {
   return { x: Math.cos(ANGLE[id]) * r, y: Math.sin(ANGLE[id]) * r };
 }
 
-/** Below this zoom, only branch labels stay visible. */
-const LABEL_ZOOM = 0.75;
+/** Below this zoom (a real zoom-out, not the fitted view), only branch labels stay visible. */
+const LABEL_ZOOM = 0.5;
+/** Label size on screen, in px. Labels are counter-scaled so zooming out never shrinks them below this. */
+const LABEL_PX = 12.5;
 
 function arcPath(r: number, frac: number): string {
   const f = Math.min(Math.max(frac, 0.001), 0.999);
@@ -169,7 +171,7 @@ export function GraphView() {
       // Branch nodes hold their wedge firmly; deeper nodes can drift toward their parents.
       .force('sx', forceX<SimNode>((d) => target(d.id).x).strength((d) => (MODEL.depth[d.id] === 1 ? 0.6 : 0.14)))
       .force('sy', forceY<SimNode>((d) => target(d.id).y).strength((d) => (MODEL.depth[d.id] === 1 ? 0.6 : 0.14)))
-      .force('collide', forceCollide<SimNode>((d) => d.r + 26))
+      .force('collide', forceCollide<SimNode>((d) => d.r + 34)) // room for the label under each node
       .alphaDecay(0.035)
       .on('end', () => {
         if (autoFit.current) {
@@ -262,6 +264,7 @@ export function GraphView() {
   fitRef.current = fit;
 
   const zoomBy = (factor: number, cx = size.w / 2, cy = size.h / 2) => {
+    autoFit.current = false; // the user's own zoom wins over the pending fit
     setView((v) => {
       const k = Math.min(3, Math.max(0.3, v.k * factor));
       const f = k / v.k;
@@ -327,6 +330,7 @@ export function GraphView() {
     }
     if (!it.moved) return;
     if (it.kind === 'pan') {
+      autoFit.current = false;
       setView((v) => ({ ...v, x: it.vx + dx, y: it.vy + dy }));
     } else if (it.id !== 'root') {
       const n = nodesRef.current.get(it.id);
@@ -355,6 +359,8 @@ export function GraphView() {
   }, [hover]);
 
   const exploration = globalExploration(MODEL, available);
+  // Graph units per screen px for labels: at zoom k < 1 they are drawn larger so they stay readable.
+  const labelScale = 1 / Math.min(view.k, 1);
   const hoverNode = hover ? nodesRef.current.get(hover) : null;
 
   return (
@@ -483,16 +489,16 @@ export function GraphView() {
                     </g>
                   )}
                 </g>
-                <text className="label" textAnchor="middle" y={r + 16}>
+                <text className="label" textAnchor="middle" y={r + 4 + 12 * labelScale} style={{ fontSize: LABEL_PX * labelScale }}>
                   {st === 'locked' ? '' : node.name}
                   {fresh && (
-                    <tspan className="new-mark" fill={WARN_HEX} dx={5}>
+                    <tspan className="new-mark" fill={WARN_HEX} dx={5} style={{ fontSize: 12 * labelScale }}>
                       new
                     </tspan>
                   )}
                 </text>
                 {startHere && (
-                  <text className="label start-here" textAnchor="middle" y={r + 31} fill={WARN_HEX}>
+                  <text className="label start-here" textAnchor="middle" y={r + 4 + 27 * labelScale} fill={WARN_HEX} style={{ fontSize: 12 * labelScale }}>
                     Start here
                   </text>
                 )}
@@ -532,7 +538,7 @@ export function GraphView() {
               Start with <b>Who am I?</b>
             </span>
           ) : (
-            <span title="Areas beyond the first three that your answers have opened">
+            <span title="Areas beyond the first five that your answers have opened">
               <b>{exploration.nodes}</b> area{exploration.nodes === 1 ? '' : 's'} opened by your answers
             </span>
           )}
@@ -576,7 +582,6 @@ export function GraphView() {
             <svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill={GRAPH.legend} /></svg>
             answered
           </span>
-          <span className="legend-item faint">Colour = branch · drag, scroll to zoom, double-click to answer</span>
         </div>
       </div>
     </div>

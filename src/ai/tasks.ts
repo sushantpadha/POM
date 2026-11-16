@@ -44,7 +44,8 @@ export async function wordTension(provider: LLMProvider, a: Entry, b: Entry): Pr
   try {
     const raw = await provider.json<unknown>(tensionRequest(ta, tb));
     const c = checkTension(raw, `${ta}\n${tb}`, LIMITS.tensionWords);
-    return c.ok ? c.sentence : null;
+    // Small models sometimes echo the prompt's labels ("(Note A)"); they mean nothing to the reader.
+    return c.ok && c.sentence ? c.sentence.replace(/\s*\(note [ab]\)/gi, '').replace(/\s+([,.])/g, '$1') : null;
   } catch {
     return null;
   }

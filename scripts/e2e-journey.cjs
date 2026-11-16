@@ -91,6 +91,9 @@ const lineTexts = (page) => page.$$eval('.entries .entry-text', (n) => n.map((x)
   assert(await page.isDisabled('.chip-opt:has-text("Adventure")'), 'P3 allows at most three picks');
   assert(await page.isVisible('.unlock-callout:has-text("What I’d Trade")'), 'P3 (#values) opens What I’d Trade');
   await shot(page, '05-multi');
+  await page.keyboard.press('Enter'); // focus is still on the last chip clicked
+  await page.waitForTimeout(200);
+  assert((await page.textContent('.qn-count')) === '4 of 5' && (await page.getAttribute('.chip-opt:has-text("Close relationships")', 'aria-pressed').catch(() => null)) === null, 'Enter after clicking a chip goes to the next question (it does not toggle the chip)');
   await toDone(page);
   assert(await page.isVisible('[data-changed-file="priorities/main"]'), 'Done screen lists the notes that changed');
   await shot(page, '06-done');
@@ -152,6 +155,10 @@ const lineTexts = (page) => page.$$eval('.entries .entry-text', (n) => n.map((x)
   await page.locator('.q-input input[type=range]').fill('8');
   assert(await page.isVisible('.unlock-callout:has-text("Family Duty")'), 'M5 (#family-duty) opens Family Duty');
   assert(await page.isVisible('.confidence'), 'M5 asks how sure you are');
+  await page.focus('.q-input input[type=range]');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(200);
+  assert(await page.isVisible('.qn-steps button[aria-label="Done"].active') || (await page.textContent('.qn-count')) === 'Done', 'Enter after a slider goes on');
   await exitFocus(page);
 
   // Goals: G6 "None of these" opens nothing; a real pick opens Other Areas; G3 opens Work & Study
@@ -177,8 +184,20 @@ const lineTexts = (page) => page.$$eval('.entries .entry-text', (n) => n.map((x)
   await step(page, 0);
   await page.click('.choice:has-text("Worth exploring")');
   assert(await steps(page) === 5, '“Worth exploring” shows the three follow-ups');
+  await page.waitForTimeout(600);
+  await step(page, 1);
+  await page.click('.q-input textarea');
+  await page.keyboard.type('Data analyst — active');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('Teaching — untried');
+  await page.click('.qn-foot button:has-text("Next")');
+  await page.waitForTimeout(200);
+  assert((await page.textContent('.qn-count')) === '3 of 5', 'typing then clicking Next saves and moves on in one click');
   await shot(page, '09-gate');
   await exitFocus(page);
+  await page.click('[data-file="goals/work-and-study"]');
+  const gc2 = await page.locator('.entry-text', { hasText: 'Paths I am considering' }).innerText();
+  assert(gc2.includes('active\nTeaching'), 'an answer written one item per line keeps its line breaks in the note');
 
   await page.click('[data-file="goals/main"]');
   await page.click('.file-toolbar button:has-text("Summarise")');
@@ -360,6 +379,15 @@ const lineTexts = (page) => page.$$eval('.entries .entry-text', (n) => n.map((x)
   await page.click('[data-experiment-off] button:has-text("Delete the log")');
   assert(await page.evaluate(() => localStorage.getItem('pom-experiment-log')) === null, 'turning it off can delete the log');
   await page.click('.dialog button:has-text("Close")');
+
+  // Zooming right after a page load must not be undone when the layout settles and auto-fits.
+  await page.reload();
+  const scale = () => page.$eval('.graph-svg > g', (g) => Number(/scale\(([\d.]+)\)/.exec(g.getAttribute('transform'))[1]));
+  await page.waitForSelector('[data-node="root"]');
+  const fitK = await scale();
+  for (let i = 0; i < 3; i++) await page.click('button[title="Zoom out"]');
+  await page.waitForTimeout(3000);
+  assert((await scale()) < fitK * 0.7, `a zoom made while the map settles is kept (${fitK.toFixed(2)} → ${(await scale()).toFixed(2)})`);
 
   // Old saved data (an earlier storage version) is discarded on load.
   await page.evaluate(() => localStorage.setItem('pom-prototype-v1', JSON.stringify({ state: { profile: 'fresh', responses: { E1: { value: 4 } } }, version: 4 })));

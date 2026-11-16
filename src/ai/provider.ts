@@ -33,9 +33,9 @@ export interface AiSettings {
   consentAt?: string;
 }
 
-// Default chosen by scripts/ai-eval.mjs (see AI_EVAL.md): phi4-mini passed 14/15 fixtures, the
-// only model of the four compared to meet the 90% target. qwen3:1.7b is the low-memory option.
-export const DEFAULT_AI: AiSettings = { mode: 'off', baseUrl: 'http://localhost:11434', model: 'phi4-mini' };
+// Default chosen by scripts/ai-eval.mjs (see AI_EVAL.md): qwen3:1.7b passed 12 of 15 fixtures in every
+// run, the most consistent of the four compared; no model reached the 90% target.
+export const DEFAULT_AI: AiSettings = { mode: 'off', baseUrl: 'http://localhost:11434', model: 'qwen3:1.7b' };
 
 /** Models the README and the settings suggest. The model name is a setting, not a constant. */
-export const SUGGESTED_MODELS = ['phi4-mini', 'qwen3:1.7b', 'qwen3:4b', 'gemma3:4b'];
+export const SUGGESTED_MODELS = ['qwen3:1.7b', 'qwen3:4b', 'gemma3:4b', 'phi4-mini'];

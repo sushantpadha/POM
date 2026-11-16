@@ -202,6 +202,11 @@ function TurnView({ turn, onReading }: { turn: Turn; onReading: () => void }) {
 function AiReading({ turn, files, onReading, onCite }: { turn: Turn; files: Record<string, NoteFile>; onReading: () => void; onCite: (n: number) => void }) {
   const ai = turn.ai!;
   const r = turn.result;
+  // Bring the reading into view when it arrives (the pane is usually scrolled to the sources).
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ai.status !== 'idle') box.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [ai.status]);
   const exists = (id: string) => Object.values(files).some((f) => f.current.entries.some((e) => e.id === id));
   const num = (id: string) => r.citations.find((c) => c.entry.id === id)?.n;
   if (ai.status === 'idle')
@@ -212,16 +217,16 @@ function AiReading({ turn, files, onReading, onCite }: { turn: Turn; files: Reco
     );
   if (ai.status === 'loading')
     return (
-      <div className="answer-block interp" role="status">
+      <div className="answer-block interp" role="status" ref={box}>
         <Loader2 size={13} className="spin" /> Asking the model on your computer…
       </div>
     );
   if (ai.status === 'failed')
-    return <div className="answer-block interp">No AI reading for this one. The quoted notes above are what your notes say.</div>;
+    return <div className="answer-block interp" ref={box}>No AI reading for this one. The quoted notes above are what your notes say.</div>;
   if (ai.status !== 'done') return null;
   const kept = ai.readings.filter((x) => x.cites.every(exists));
   return (
-    <div className="answer-block interp" data-ai-reading>
+    <div className="answer-block interp" data-ai-reading ref={box}>
       <div className="bh">
         <span className="ai-label">AI</span> A reading
       </div>

@@ -17,9 +17,9 @@ import { wordTension } from '../../ai/tasks';
 const worded = new Map<string, Promise<string | null>>();
 
 /** With AI on, the model words the tension from the two lines; rules still decide which pairs show. */
-function useAiWording(t: Tension): { text: string | null; pending: boolean } {
+function useAiWording(t: Tension): { text: string | null; pending: boolean; failed?: boolean } {
   const ai = useStore((s) => s.ai);
-  const [state, setState] = useState<{ text: string | null; pending: boolean }>({ text: null, pending: false });
+  const [state, setState] = useState<{ text: string | null; pending: boolean; failed?: boolean }>({ text: null, pending: false });
   const a = t.a[0].entry;
   const b = t.b[0].entry;
   useEffect(() => {
@@ -36,7 +36,7 @@ function useAiWording(t: Tension): { text: string | null; pending: boolean } {
     }
     let live = true;
     setState({ text: null, pending: true });
-    worded.get(key)!.then((text) => live && setState({ text, pending: false }));
+    worded.get(key)!.then((text) => live && setState({ text, pending: false, failed: !text }));
     return () => {
       live = false;
     };
@@ -92,6 +92,7 @@ function TensionCard({ t, focus }: { t: Tension; focus: boolean }) {
         <p>{t.rule.summary}</p>
       )}
       {aiText.pending && <p className="faint">Wording this with the model on your computer…</p>}
+      {aiText.failed && <p className="faint">No AI reading for this one.</p>}
       {!dismissed && (
         <>
           <div className="evidence">

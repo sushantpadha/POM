@@ -20,7 +20,7 @@ npm test                             # unit tests
 npm run typecheck
 npm run contrast                     # colour contrast check of the palette
 node scripts/e2e-journey.cjs         # with the dev server running; needs Playwright
-node scripts/ai-eval.mjs phi4-mini   # with Ollama running: AI eval, see below
+node scripts/ai-eval.mjs qwen3:1.7b  # with Ollama running: AI eval, see below
 node scripts/experiment-summary.mjs <logs…>   # summary of exported experiment logs
 npm run build                        # type-check + production build into dist/
 ```
@@ -96,19 +96,33 @@ Every question can be skipped, and every question has an optional **Add a note**
 
 ## Local AI (optional)
 
-AI is off by default. When on, it only uses a model running on your own computer through
-[Ollama](https://ollama.com); there is no hosted AI and nothing leaves your machine.
+AI is off by default. When on, it uses a model running on your own computer through [Ollama](https://ollama.com);
+nothing leaves your machine.
+
+**How to use it**
+
+1. Install Ollama from <https://ollama.com/download> and start it (the desktop app, or `ollama serve`).
+2. Download the default model (about 1.4 GB):
+
+   ```bash
+   ollama pull qwen3:1.7b
+   ```
+
+3. Open the app and click the **ⓘ** button at the top right (**Your data**).
+4. Under **AI**, choose **Ollama** and agree to the consent (“Your notes are sent to the model running on this
+   computer. Nothing leaves it.”).
+5. Click **Test connection**. It should say the model is installed. To use another model, `ollama pull` it and type its
+   name in **Model**.
+6. Use it: **Summarise** on a note, the **Tensions** tab, or **Show a reading** under a question in **Ask**.
+
+If you use the hosted GitHub Pages version instead of `npm run dev`, Ollama must allow that page. Quit Ollama, then
+start it with:
 
 ```bash
-ollama pull phi4-mini         # default (best in our eval, see AI_EVAL.md); qwen3:1.7b is the low-memory option
+OLLAMA_ORIGINS=https://<user>.github.io ollama serve
 ```
 
-Then open **Your data** (the ⓘ button) → **AI** → **Ollama**, agree to the second consent, and use **Test connection**.
-The address defaults to `http://localhost:11434`, and the model name is a setting.
-
-- From `npm run dev` on `localhost`, no Ollama setting is needed.
-- For the hosted GitHub Pages build, start Ollama with your page's origin allowed, e.g.
-  `OLLAMA_ORIGINS=https://<user>.github.io ollama serve`.
+To turn AI off, choose **Off** in the same place.
 
 | Job | With AI on | With AI off, or if the output fails a check |
 | --- | --- | --- |
@@ -118,12 +132,13 @@ The address defaults to `http://localhost:11434`, and the model name is a settin
 | Retakes | Rules only | Rules only |
 
 Every model output is checked: valid JSON, citations that point at lines that were sent, length caps, no advice or
-diagnosis phrases (“you should”, “deep down” …), and no number or date that is not in the notes. A line that fails is
+diagnosis phrases (“you should”, “deep down” …) and no advice given as a command (“Consider…”), and no number or date that is not in the notes. A line that fails is
 dropped; if nothing survives, the rule-based output is used and the app says “No AI reading for this one”.
 
-`node scripts/ai-eval.mjs phi4-mini qwen3:4b …` runs 15 fixtures from the sample profile against a running Ollama and
-prints the pass rate per model. The target is 90% of fixtures passing every check on the default model; the results
-are in [`AI_EVAL.md`](AI_EVAL.md).
+`node scripts/ai-eval.mjs qwen3:1.7b phi4-mini …` runs 15 fixtures from the sample profile against a running Ollama and
+prints the pass rate per model. The target is 90% of fixtures passing every check on the default model. No model reached
+90% in our runs; the default, qwen3:1.7b, passed 12 of 15 every time. See
+[`AI_EVAL.md`](AI_EVAL.md).
 
 ## Experiment mode
 

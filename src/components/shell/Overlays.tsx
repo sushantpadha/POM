@@ -30,7 +30,7 @@ export function DemoChooser() {
             </button>
             <button className="chooser-card" onClick={() => chooseProfile('sample')}>
               <h3>Look at a sample</h3>
-              <p>A fictional student, seven months in, weighing a PhD offer abroad against family commitments.</p>
+              <p>A fictional student, eight months in, weighing a PhD offer abroad against family commitments.</p>
             </button>
           </div>
         </div>

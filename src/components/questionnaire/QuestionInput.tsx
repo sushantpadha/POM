@@ -10,9 +10,11 @@ interface Props {
   onClear: () => void;
   /** Enter in a one-line text answer: save and go on. */
   onEnter?: () => void;
+  /** Whether a text box holds unsaved text (so Next can be enabled before the blur saves it). */
+  onDraft?: (has: boolean) => void;
 }
 
-export function QuestionInput({ q, response, onAnswer, onClear, onEnter }: Props) {
+export function QuestionInput({ q, response, onAnswer, onClear, onEnter, onDraft }: Props) {
   const v = response?.value;
   switch (q.type) {
     case 'likert':
@@ -40,7 +42,7 @@ export function QuestionInput({ q, response, onAnswer, onClear, onEnter }: Props
     case 'rank':
       return <Rank q={q} value={v as string[] | undefined} onAnswer={onAnswer} />;
     case 'text':
-      return <TextAnswer key={q.id} value={(v as string) ?? ''} placeholder={q.placeholder} onAnswer={onAnswer} onEnter={onEnter} />;
+      return <TextAnswer key={q.id} value={(v as string) ?? ''} placeholder={q.placeholder} onAnswer={onAnswer} onEnter={onEnter} onDraft={onDraft} />;
     case 'slider':
       return <Slider key={q.id} value={v as number | undefined} ends={q.scale} onAnswer={onAnswer} />;
     case 'sliders':
@@ -138,8 +140,10 @@ function Rank({ q, value, onAnswer }: { q: Question; value?: string[]; onAnswer:
   );
 }
 
-function TextAnswer({ value, placeholder, onAnswer, onEnter }: { value: string; placeholder?: string; onAnswer: (v: string) => void; onEnter?: () => void }) {
+function TextAnswer({ value, placeholder, onAnswer, onEnter, onDraft }: { value: string; placeholder?: string; onAnswer: (v: string) => void; onEnter?: () => void; onDraft?: (has: boolean) => void }) {
   const [draft, setDraft] = useState(value);
+  const has = !!draft.trim();
+  useEffect(() => onDraft?.(has), [has, onDraft]);
   const dirty = draft.trim() !== value.trim();
   const commit = () => {
     if (draft.trim() && dirty) onAnswer(draft.trim());

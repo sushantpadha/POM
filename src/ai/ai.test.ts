@@ -26,6 +26,12 @@ describe('guards', () => {
     expect(c.kept.map((l) => l.text)).toEqual(['Fine line.']);
     expect(hasFilteredPhrase('This suggests you are anxious')).toBe(true);
     expect(hasFilteredPhrase('You said you owe a lot')).toBe(false);
+    expect(hasFilteredPhrase('Consider the Zurich lab’s fit for your work.')).toBe(true);
+    expect(hasFilteredPhrase('Reflect on the belief you changed.')).toBe(true);
+    expect(hasFilteredPhrase('You considered the Zurich lab the best fit.')).toBe(false);
+    expect(hasFilteredPhrase('Explore your work or study direction.')).toBe(true);
+    expect(hasFilteredPhrase('Check-ins show most of your time went to work.')).toBe(false);
+    expect(hasFilteredPhrase('Considering the Zurich PhD and a job in Bengaluru.')).toBe(false);
     // The person's own words are not the model diagnosing: "PhD in diagnostics" may be restated.
     expect(hasFilteredPhrase('Your first path is a PhD in diagnostics.', 'Zurich PhD in diagnostics — active')).toBe(false);
     expect(hasFilteredPhrase('This may be a diagnosis.', 'Zurich PhD in diagnostics')).toBe(true);
@@ -63,6 +69,8 @@ describe('tasks with the fake provider', () => {
   it('words a tension starting "You said" from the two lines', async () => {
     const s = await wordTension(new FakeProvider(), tension.a[0].entry, tension.b[0].entry);
     expect(s).toMatch(/^You said/);
+    const labelled = await wordTension(new FakeProvider(() => ({ sentence: 'You said one thing (Note A), and another (Note B).' })), tension.a[0].entry, tension.b[0].entry);
+    expect(labelled).toBe('You said one thing, and another.');
   });
 
   it('gives a reading that cites retrieved lines, or says the notes do not answer', async () => {

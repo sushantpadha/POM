@@ -155,7 +155,7 @@ export function answer(
     interpretation: [
       {
         text: reported.length
-          ? `These are the most relevant lines from ${dims.map((d) => DIM_LABEL[d]).join(', ')}. The prototype has no AI, so it can only quote your notes here, not interpret them.`
+          ? `These are the most relevant lines from ${dims.map((d) => DIM_LABEL[d]).join(', ')}. AI is off, so this only quotes your notes. Turn on AI under “Your data” to ask for a reading.`
           : 'There are no notes in these areas yet. Answer some questions first, then ask again.',
         cites: reported.slice(0, 3).map((r) => r.cite),
       },

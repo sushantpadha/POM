@@ -73,6 +73,8 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   const finished = useRef(false);
   /** "Add a note" box open for this question id. */
   const [noting, setNoting] = useState<string | null>(null);
+  /** Unsaved text in the current question's box: enough to enable Next (the blur saves it). */
+  const [drafted, setDrafted] = useState(false);
   const advanceTimer = useRef<number | undefined>(undefined);
   const go = (i: number) => {
     window.clearTimeout(advanceTimer.current);
@@ -142,7 +144,7 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (t.closest('textarea, input, select, [contenteditable]') || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (t.closest('textarea, input:not([type=range]), select, [contenteditable]') || e.metaKey || e.ctrlKey || e.altKey) return;
       if (!current) return;
       const n = Number(e.key);
       if (Number.isInteger(n) && n >= 1) {
@@ -150,7 +152,8 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
         else if (current.type === 'choice' && n <= (current.options?.length ?? 0)) answer(current, current.options![n - 1].value);
         else return;
         e.preventDefault();
-      } else if (e.key === 'Enter' && !t.closest('button, a') && responses[current.id]) {
+      } else if (e.key === 'Enter' && responses[current.id] && (!t.closest('button, a') || t.closest('.q-input button'))) {
+        // Enter on a chip or rank button the user just clicked means "next", not "press it again".
         e.preventDefault();
         go(index + 1);
       }
@@ -312,11 +315,16 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                 onAnswer={(v) => answer(q, v)}
                 onClear={() => touch(clearResponse(q.id))}
                 onEnter={() => go(index + 1)}
+                onDraft={setDrafted}
               />
             </div>
 
-            {responses[q.id] &&
-              (noting === q.id ? (
+            {/* Always rendered, so saving an answer never shifts the buttons under the pointer. */}
+            {!responses[q.id] ? (
+              <button className="why-link add-note" disabled title="Answer first, then add a note in your own words">
+                Add a note
+              </button>
+            ) : (noting === q.id ? (
                 <NoteBox
                   initial={responses[q.id].note ?? ''}
                   onDone={(text) => {
@@ -335,7 +343,8 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
                 <button className="why-link add-note" onClick={() => setNoting(q.id)}>
                   Add a note
                 </button>
-              ))}
+              )
+            )}
 
             {q.askConfidence && responses[q.id] && (
               <div className="confidence">
@@ -370,7 +379,7 @@ export function Questionnaire({ nodeId }: { nodeId: string }) {
               >
                 Skip
               </button>
-              <button className="btn primary" disabled={!responses[q.id]} onClick={() => go(index + 1)}>
+              <button className="btn primary" disabled={!responses[q.id] && !(drafted && q.type === 'text')} onClick={() => go(index + 1)}>
                 Next <ArrowRight size={13} />
               </button>
             </div>

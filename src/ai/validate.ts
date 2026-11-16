@@ -9,12 +9,20 @@ export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).le
 const norm = (s: string) => s.toLowerCase().replace(/[’`]/g, "'");
 
 /**
+ * Advice given as a command ("Consider…", "Reflect on…"). Not in PLAN_V2's list, which only has
+ * "you should" / "you need to"; added after a live run where phi4-mini answered "What should I think
+ * about…?" with three imperatives. The system prompt already forbids advice; this catches it.
+ */
+export const ADVICE_START = /^(consider|reflect|think about|remember|try|make sure|don't|do not|avoid|focus on|talk to|ask yourself|keep in mind|take (some )?time|weigh|be sure|prioriti[sz]e|explore|decide|choose|plan|start|stop|check(?!-in)|seek|discuss|look at|reach out)\b/i;
+
+/**
  * A filtered phrase in the output, unless the person's own notes already contain it (restating
  * "PhD in diagnostics" is not the model diagnosing anyone).
  */
 export const hasFilteredPhrase = (s: string, input = '') => {
   const t = norm(s);
   const inp = norm(input);
+  if (ADVICE_START.test(s.trim())) return true;
   return PHRASE_FILTER.some((p) => {
     // The whole words around each match, e.g. "diagnostics" for "diagnos".
     const re = new RegExp(`[a-z']*${p.replace(/ /g, '\\s+')}[a-z']*`, 'g');

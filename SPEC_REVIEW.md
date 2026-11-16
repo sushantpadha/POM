@@ -52,8 +52,8 @@ Still open:
 3. **Purpose / meaning** is no longer its own node (Doc 1's "Meaning and purpose"); it is touched by G2, IB1 and C3.
 4. **Validation.** Items are our own wording; nothing is scored. Real-user think-aloud tests (PLAN_V2 1.4) and a
    psychologist's review are still needed. Experiment mode records what testers do so weak items can be cut.
-5. **AI quality.** On the eval, phi4-mini (the default) passed 14 of 15 fixtures and the other models 11–12; every model
-   mishandled a question the notes cannot answer. The guards catch these, but readings should be checked with testers
+5. **AI quality.** On the eval, no model reaches the 90% target; the default, qwen3:1.7b, passes 12 of 15 in every
+   run, and phi4-mini varies from 9 to 14. Small models still give advice when a question invites it. The guards catch these, but readings should be checked with testers
    too. See [`AI_EVAL.md`](AI_EVAL.md).
 
 ## 3. Items flagged while building v2
