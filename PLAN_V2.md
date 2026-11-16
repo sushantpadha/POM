@@ -24,6 +24,8 @@ How to work:
 - **Decided:** AI runs on the user's own Ollama. No hosted API, no in-browser model.
 - **Decided:** saved data may be broken. Bump the storage version and discard old data on load.
 - **Decided:** every answer is applied to the notes immediately. No draft/commit step for answers.
+- **Decided:** the GitHub Pages deploy stays manual (`workflow_dispatch` only). Do not add push, pull-request or
+  schedule triggers to it, do not add other workflows, and do not run the deploy yourself.
 - **Decided:** experiment mode keeps its log in the browser and the tester exports a file. No collection server.
 - Core features that must survive: file tree, readable and editable notes, focused questionnaire, Ask, tensions,
   retakes, version history, locks, provenance, export/import, reset/erase topic.
